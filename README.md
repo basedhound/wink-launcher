@@ -1,6 +1,6 @@
 # Taskbar Launcher
 
-A tiny app-launcher search box that lives **inside the Windows taskbar** (top or bottom), right next to the system icons.
+A tiny app-launcher search box that lives **inside the Windows taskbar** (top or bottom), next to the clock or in place of the Start button.
 Type a few letters, it suggests your apps with their icons, press **Enter** or click to launch.
 
 ![Launcher in the taskbar: typing "se" suggests Settings, Services, Security and Maintenance...; typing "steam " lists the installed Steam games](docs/screenshot.png)
@@ -14,15 +14,21 @@ PowerShell 5.1 that ships with Windows.
   name, any word, initials, or letters in order from the start of a word (`ntpd` > Notepad), and ignores accents. Ranking runs in C# (< 1 ms per keystroke).
 - **App icons** in the suggestions, and the selected app's icon in the box itself.
 - **Learns what you use**: frequently launched apps move to the top.
-- **Aliases**: type `ch=chrome` then Enter, and `ch` now launches Google Chrome.
-  Right-click a suggestion > *Give this app an alias*, or type `:alias` to open the alias manager (dark window: add, edit with a double-click, delete with the cross; changes are saved instantly).
+- **Aliases**: type `ch=chrome` then Enter, and `ch` now launches Google Chrome. An alias can point to anything
+  the bar finds (app, shortcut, Settings page, game) or to a folder, URL or command.
+  Right-click a suggestion > *Give this app an alias*, or type `:alias` to open the alias manager: add, edit with a
+  double-click, delete with the cross. Changes are saved instantly, and the bar stays usable while the window is open,
+  so a new alias can be tried right away.
+
+  ![Alias manager: a dark window listing aliases with their app icons](docs/aliases.png)
+
 - **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder (right-click the bar > *Shortcuts*) and it shows up in the search under its file name.
   Name it like an installed app and it **replaces** that app in the search: e.g. a `Google Calendar.lnk` running
   `brave.exe --app=https://calendar.google.com/calendar/u/0/r/tasks` opens Calendar straight on Tasks.
   Keep the icons your shortcuts use in `shortcuts\.icons` (ignored by the search).
 - **Empty Recycle Bin**: type `empty`, press Enter, confirm (it always asks first, even if Windows' own confirmation is turned off).
-- **Games, on demand**: installed Steam and GOG games stay out of the normal results (no Elden Ring every time you type `e`).
-  Type `steam ` first: `steam e` suggests Elden Ring, `steam ds` Dark Souls, and `steam ` alone lists every installed game.
+- **Games, on demand**: installed Steam and GOG games stay out of the normal results (no Dark Souls every time you type `d`).
+  Type `steam ` first: `steam dark` (or just `steam ds`) suggests Dark Souls, and `steam ` alone lists every installed game.
   Same with `gog `. Give a game an alias to launch it directly.
 - **Always up to date**: a newly installed program is searchable a few seconds after its installer finishes
   (Windows tells the bar when the Start menu changes; same for Steam and GOG games when one is installed or uninstalled; Microsoft Store apps are picked up within 30 minutes).
@@ -55,11 +61,13 @@ to the old folder and re-registers it from the new one.
 Unregister-ScheduledTask -TaskName LauncherBar -Confirm:$false
 ```
 
+and delete the folder (plus `%APPDATA%\Launcher` for the usage history and log).
+
 If you quit the bar from its menu, it stays closed until the next reboot, or until you double-click `Start Bar.bat`.
 
 ## Usage
 
-| Action | Key |
+| Action | How |
 |---|---|
 | Focus the bar | click it or tap **Windows** |
 | Open the real Start menu | **Ctrl+Esc** |
@@ -67,9 +75,10 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 | Move through suggestions | **Up / Down** |
 | Launch | **Enter** or click a suggestion |
 | Clear | **Ctrl+Space** (stay in the bar) or **Esc** (clear and go back to the previous window); Ctrl+Backspace deletes the last word |
-| Search your games | `steam ` or `gog ` then the name (`steam elden`) |
-| Create an alias | `alias=app name`, then Enter |
+| Search your games | `steam ` or `gog ` then the name (`steam dark`) |
+| Empty the Recycle Bin | `empty`, then Enter (asks first) |
 | Manage aliases | `:alias`, or right-click the bar > *Aliases* |
+| Create an alias | `alias=app name`, then Enter, or right-click a suggestion > *Give this app an alias* |
 | Open the shortcuts folder | right-click the bar > *Shortcuts* |
 | Move the bar left / right | right-click the bar > *Move to left* / *Move to right* |
 | Quit the bar | right-click the bar > *Quit* |
@@ -117,6 +126,8 @@ The log records starts, stops, every launch and any launch error, which is the f
 - Apps come from `Get-StartApps` and are launched through `shell:AppsFolder\<AppID>`, which covers
   both desktop and Store apps.
 - Icons are fetched with `IShellItemImageFactory` on the same `shell:AppsFolder` items, alpha channel kept.
+- Steam games are read from the `appmanifest_*.acf` files of every Steam library (watched for changes),
+  GOG games from the registry (`GOG.com\Games`), so no launcher needs to be running.
 - The box is a borderless WinForms window owned by `Shell_TrayWnd`, so Windows keeps it above the taskbar.
 - The suggestion list is a `WS_EX_NOACTIVATE` window that also answers `WM_MOUSEACTIVATE` with `MA_NOACTIVATE`,
   so neither typing nor clicking a suggestion ever takes the focus away from the box.

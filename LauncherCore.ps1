@@ -544,6 +544,7 @@ function Show-AliasManager([string]$preset) {
         foreach ($w in @($bar, $pop)) { if ($w) { [LauncherNative]::Enable($w.Handle) } }
     })
 
+    Update-AppsIfStale   # alias.txt edited by hand since the last load: every alias gets its icon
     Import-AliasGrid
     [void]$f.Handle; [LauncherNative]::DarkTitle($f.Handle)
     $script:aliasWin = $f; $script:aliasTarget = $targetBox; $script:aliasKey = $aliasBox
