@@ -2,6 +2,5 @@
 alias.txt
 *.bak
 
-# Personal shortcuts (the folder itself is kept via .gitkeep)
-shortcuts/*
-!shortcuts/.gitkeep
+# Personal shortcuts and their icons (the folder is created on first run)
+shortcuts/

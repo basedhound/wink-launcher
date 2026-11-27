@@ -19,6 +19,7 @@ PowerShell 5.1 that ships with Windows.
 - **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder (right-click the bar > *Shortcuts*) and it shows up in the search under its file name.
   Name it like an installed app and it **replaces** that app in the search: e.g. a `Google Calendar.lnk` running
   `brave.exe --app=https://calendar.google.com/calendar/u/0/r/tasks` opens Calendar straight on Tasks.
+  Keep the icons your shortcuts use in `shortcuts\.icons` (ignored by the search).
 - **Empty Recycle Bin**: type `empty`, press Enter, confirm (it always asks first, even if Windows' own confirmation is turned off).
 - **Games, on demand**: installed Steam and GOG games stay out of the normal results (no Elden Ring every time you type `e`).
   Type `steam ` first: `steam e` suggests Elden Ring, `steam ds` Dark Souls, and `steam ` alone lists every installed game.
@@ -96,7 +97,7 @@ On the left, the Start button is always hidden (the bar takes its place). It com
 | `LauncherCore.ps1` | app list, search engine (C#), aliases, usage history, launching, alias manager window |
 | `Install.ps1` | registers the scheduled task and starts the bar |
 | `Start Bar.bat` | reopens the bar (double-click), even after *Quit*, and repairs the task if the folder was moved |
-| `shortcuts/` | your own shortcuts and files, searchable by file name |
+| `shortcuts/` | your own shortcuts and files, searchable by file name (created on first run, not versioned); icons in `shortcuts/.icons` |
 | `alias.txt` | your aliases, created on first run (not versioned) |
 
 Usage history (`history.json`) and the log (`bar.log`) live in `%APPDATA%\Launcher`.

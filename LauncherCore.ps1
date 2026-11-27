@@ -5,10 +5,14 @@ $dataDir   = Join-Path $env:APPDATA 'Launcher'
 $histFile  = Join-Path $dataDir 'history.json'
 $aliasFile = Join-Path $PSScriptRoot 'alias.txt'
 $shortcutDir = Join-Path $PSScriptRoot 'shortcuts'   # any file dropped here (.lnk, .url, .exe, document...) shows up in the search
-New-Item -ItemType Directory -Force $dataDir, $shortcutDir | Out-Null
+New-Item -ItemType Directory -Force $dataDir, $shortcutDir, (Join-Path $shortcutDir '.icons') | Out-Null
 
-# Files in the shortcuts folder (subfolders included), except dot-files such as .gitkeep
-function Get-ShortcutFiles { @(Get-ChildItem -LiteralPath $shortcutDir -File -Recurse -ErrorAction SilentlyContinue | Where-Object { -not $_.Name.StartsWith('.') }) }
+# Files in the shortcuts folder (subfolders included), except dot-files and dot-folders
+# (".icons" holds the icons used by the shortcuts)
+function Get-ShortcutFiles {
+    @(Get-ChildItem -LiteralPath $shortcutDir -File -Recurse -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName.Substring($shortcutDir.Length) -notmatch '\\\.' })
+}
 # Changes when a shortcut is added, removed, renamed or edited
 function Get-ShortcutStamp { (Get-ShortcutFiles | ForEach-Object { "$($_.FullName)|$($_.LastWriteTimeUtc.Ticks)" }) -join ';' }
 
