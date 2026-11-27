@@ -102,8 +102,16 @@ On the left, the Start button is always hidden (the bar takes its place). It com
 
 | File | Purpose |
 |---|---|
-| `LauncherBar.ps1` | the search box in the taskbar |
-| `LauncherCore.ps1` | app list, search engine (C#), aliases, usage history, launching, alias manager window |
+| `LauncherBar.ps1` | starts the bar (its settings are at the top) and loads the parts below |
+| `src/Catalog.ps1` | what the bar finds and launches: Start menu apps, shortcuts, Settings pages, Control Panel, actions, aliases, usage history |
+| `src/Games.ps1` | installed Steam and GOG games |
+| `src/Search.cs` | the search engine (C#: matching and ranking) |
+| `src/Bar.ps1`, `src/Results.ps1`, `src/Input.ps1` | the search box and its place in the taskbar, the suggestion list, keyboard / mouse / menus |
+| `src/Icons.ps1`, `src/Theme.ps1` | icons (cached, preloaded) and the shared dark theme |
+| `src/AliasWindow.ps1` | the alias manager |
+| `src/Reload.ps1` | keeps the list up to date (Start menu, Steam and GOG changes) |
+| `src/Native.cs` | Windows plumbing (C#): taskbar, Windows key, focus, icons |
+| `tests/` | `Search.Tests.ps1` (search engine unit tests) and `Snapshot.ps1` (prints what the bar finds on this PC, to compare before / after a change) |
 | `Install.ps1` | registers the scheduled task and starts the bar |
 | `Start Bar.bat` | reopens the bar (double-click), even after *Quit*, and repairs the task if the folder was moved |
 | `shortcuts/` | your own shortcuts and files, searchable by file name, and `shortcuts/.icons` for their icons (the folders ship empty: their content stays personal) |
