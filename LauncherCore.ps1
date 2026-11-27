@@ -233,90 +233,216 @@ function Add-Alias([string]$alias, [string]$target) {
     Import-Apps
 }
 
-# ---- Alias manager window ----
-# $preset: name of an app to pre-fill in a new row
+# ---- Alias manager window (dark) ----
+# Changes are saved as soon as they're made: add a row at the top, edit a cell (double-click), or click the cross.
+# $preset: name of an app to pre-fill as the target (right-click a suggestion > Give this app an alias)
 function Show-AliasManager([string]$preset) {
+    $s = if ($scale) { $scale } else { 1 }
+    function px([double]$v) { [int]($v * $s) }
+    $cBg = [Drawing.Color]::FromArgb(32, 32, 32); $cIn = [Drawing.Color]::FromArgb(45, 45, 45); $cInHover = [Drawing.Color]::FromArgb(58, 58, 58)
+    $cLine = [Drawing.Color]::FromArgb(52, 52, 52); $cSel = [Drawing.Color]::FromArgb(42, 46, 54)
+    $cText = [Drawing.Color]::FromArgb(232, 232, 232); $cMuted = [Drawing.Color]::FromArgb(150, 150, 150)
+    $cAlias = [Drawing.Color]::FromArgb(140, 180, 245); $cAcc = [Drawing.Color]::FromArgb(60, 90, 140); $cAccHover = [Drawing.Color]::FromArgb(76, 110, 166)
+    $cDel = [Drawing.Color]::FromArgb(232, 80, 90)
+    $font = New-Object Drawing.Font('Segoe UI', 10)
+    $blank = New-Object Drawing.Bitmap(1, 1)
+
+    # Rounded corners on a control (redone when it's resized)
+    $round = {
+        $c = $this; $r = px 6; $w = $c.Width; $h = $c.Height; if ($w -lt $r * 2 -or $h -lt $r * 2) { return }
+        $p = New-Object Drawing.Drawing2D.GraphicsPath
+        $p.AddArc(0, 0, $r * 2, $r * 2, 180, 90); $p.AddArc($w - $r * 2, 0, $r * 2, $r * 2, 270, 90)
+        $p.AddArc($w - $r * 2, $h - $r * 2, $r * 2, $r * 2, 0, 90); $p.AddArc(0, $h - $r * 2, $r * 2, $r * 2, 90, 90)
+        $p.CloseFigure(); $c.Region = New-Object Drawing.Region($p)
+    }
+    function New-Button([string]$text, $back, $hover) {
+        $b = New-Object Windows.Forms.Button
+        $b.Text = $text; $b.FlatStyle = 'Flat'; $b.FlatAppearance.BorderSize = 0
+        $b.BackColor = $back; $b.FlatAppearance.MouseOverBackColor = $hover; $b.FlatAppearance.MouseDownBackColor = $hover
+        $b.ForeColor = [Drawing.Color]::White; $b.Cursor = 'Hand'; $b.Add_Resize($round); $b
+    }
+    # Text field: a borderless text box inside a rounded panel, vertically centered
+    function New-Field {
+        $p = New-Object Windows.Forms.Panel
+        $p.Dock = 'Fill'; $p.BackColor = $cIn; $p.Margin = New-Object Windows.Forms.Padding(0, 0, (px 8), 0); $p.Cursor = 'IBeam'
+        $t = New-Object Windows.Forms.TextBox
+        $t.BorderStyle = 'None'; $t.BackColor = $cIn; $t.ForeColor = $cText; $t.Font = $font
+        $p.Controls.Add($t)
+        $p.Add_Resize({ $tb = $this.Controls[0]; $tb.SetBounds((px 10), [int](($this.Height - $tb.Height) / 2), $this.Width - (px 20), $tb.Height) })
+        $p.Add_Resize($round)
+        $p.Add_Click({ $this.Controls[0].Focus() })
+        $p
+    }
+
     $f = New-Object Windows.Forms.Form
-    $f.Text = 'Launcher aliases'
-    $f.StartPosition = 'CenterScreen'
-    $f.Size = New-Object Drawing.Size(560, 480)
-    $f.MinimumSize = New-Object Drawing.Size(400, 300)
-    $f.TopMost = $true
-    $f.MinimizeBox = $false
-    $f.Font = New-Object Drawing.Font('Segoe UI', 10)
+    $f.Text = 'Aliases'; $f.ShowIcon = $false; $f.TopMost = $true; $f.KeyPreview = $true
+    $f.StartPosition = 'CenterScreen'; $f.AutoScaleMode = 'None'
+    $f.Size = New-Object Drawing.Size((px 640), (px 540)); $f.MinimumSize = New-Object Drawing.Size((px 460), (px 360))
+    $f.BackColor = $cBg; $f.ForeColor = $cText; $f.Font = $font
 
-    $info = New-Object Windows.Forms.Label
-    $info.Dock = 'Top'
-    $info.Height = 46
-    $info.Padding = New-Object Windows.Forms.Padding(8, 6, 8, 0)
-    $info.Text = "Alias = what you type in the bar.  Target = the app (suggested as you type), a folder, a URL or a command."
+    # Header
+    $head = New-Object Windows.Forms.Panel
+    $head.Dock = 'Top'; $head.Height = px 82; $head.Padding = New-Object Windows.Forms.Padding((px 20), (px 16), (px 20), 0)
+    $sub = New-Object Windows.Forms.Label
+    $sub.Dock = 'Top'; $sub.Height = px 24; $sub.ForeColor = $cMuted; $sub.Font = New-Object Drawing.Font('Segoe UI', 9.5)
+    $sub.Text = 'Type an alias in the bar to launch its target: an app, a folder, a URL or a command.'
+    $title = New-Object Windows.Forms.Label
+    $title.Dock = 'Top'; $title.Height = px 34; $title.Text = 'Aliases'; $title.ForeColor = [Drawing.Color]::White
+    $title.Font = New-Object Drawing.Font('Segoe UI Semibold', 16)
+    $head.Controls.AddRange(@($sub, $title))
 
-    $grid = New-Object Windows.Forms.DataGridView
-    $grid.Dock = 'Fill'
-    $grid.RowHeadersVisible = $false
-    $grid.AllowUserToAddRows = $true
-    $grid.AutoSizeColumnsMode = 'Fill'
-    $grid.BackgroundColor = [Drawing.Color]::White
-    $grid.BorderStyle = 'None'
-    [void]$grid.Columns.Add('Alias', 'Alias')
-    [void]$grid.Columns.Add('Target', 'Target')
-    $grid.Columns[0].FillWeight = 30
-    $grid.Columns[1].FillWeight = 70
-
-    foreach ($line in Get-Content $aliasFile -Encoding UTF8) {
-        if ($line -match '^\s*#' -or $line -notmatch '^\s*([^=]+?)\s*=\s*(.+?)\s*$') { continue }
-        [void]$grid.Rows.Add($Matches[1], $Matches[2])
-    }
-    if ($preset) {
-        $i = $grid.Rows.Add('', $preset)
-        $grid.CurrentCell = $grid.Rows[$i].Cells[0]
-        $f.Add_Shown({ $grid.BeginEdit($true) })
-    }
-
-    # App name suggestions in the Target column
+    # New alias row: [alias] [target] [Add]
+    $add = New-Object Windows.Forms.TableLayoutPanel
+    $add.Dock = 'Top'; $add.Height = px 58; $add.Padding = New-Object Windows.Forms.Padding((px 20), (px 8), (px 20), (px 10))
+    $add.ColumnCount = 3; $add.RowCount = 1
+    [void]$add.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent', 30)))
+    [void]$add.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent', 70)))
+    [void]$add.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Absolute', (px 90))))
+    [void]$add.RowStyles.Add((New-Object Windows.Forms.RowStyle('Percent', 100)))
+    $aliasField = New-Field; $aliasBox = $aliasField.Controls[0]
+    $targetField = New-Field; $targetBox = $targetField.Controls[0]
     $names = New-Object Windows.Forms.AutoCompleteStringCollection
     $names.AddRange([string[]]@($script:apps | Where-Object { -not $_.Target } | ForEach-Object { $_.Name }))
-    $grid.Add_EditingControlShowing({
-        param($s, $e)
-        $tb = $e.Control -as [Windows.Forms.TextBox]
-        if (-not $tb) { return }
-        if ($grid.CurrentCell.ColumnIndex -eq 1) {
-            $tb.AutoCompleteMode = 'SuggestAppend'; $tb.AutoCompleteSource = 'CustomSource'; $tb.AutoCompleteCustomSource = $names
-        } else { $tb.AutoCompleteMode = 'None' }
-    })
+    $targetBox.AutoCompleteMode = 'SuggestAppend'; $targetBox.AutoCompleteSource = 'CustomSource'; $targetBox.AutoCompleteCustomSource = $names
+    $addBtn = New-Button 'Add' $cAcc $cAccHover
+    $addBtn.Dock = 'Fill'; $addBtn.Margin = New-Object Windows.Forms.Padding(0)
+    $add.Controls.Add($aliasField, 0, 0); $add.Controls.Add($targetField, 1, 0); $add.Controls.Add($addBtn, 2, 0)
 
-    $bottom = New-Object Windows.Forms.FlowLayoutPanel
-    $bottom.Dock = 'Bottom'
-    $bottom.Height = 48
-    $bottom.FlowDirection = 'RightToLeft'
-    $bottom.Padding = New-Object Windows.Forms.Padding(6)
+    # Alias list
+    $grid = New-Object Windows.Forms.DataGridView
+    $grid.Dock = 'Fill'; $grid.BackgroundColor = $cBg; $grid.BorderStyle = 'None'; $grid.GridColor = $cLine
+    $grid.CellBorderStyle = 'SingleHorizontal'; $grid.RowHeadersVisible = $false
+    $grid.AllowUserToAddRows = $false; $grid.AllowUserToDeleteRows = $false; $grid.AllowUserToResizeRows = $false
+    $grid.SelectionMode = 'FullRowSelect'; $grid.MultiSelect = $false; $grid.AutoSizeColumnsMode = 'Fill'
+    $grid.EnableHeadersVisualStyles = $false; $grid.ColumnHeadersBorderStyle = 'None'
+    $grid.ColumnHeadersHeightSizeMode = 'DisableResizing'; $grid.ColumnHeadersHeight = px 32
+    $grid.RowTemplate.Height = px 42; $grid.EditMode = 'EditProgrammatically'
+    $grid.DefaultCellStyle.BackColor = $cBg; $grid.DefaultCellStyle.ForeColor = $cText
+    $grid.DefaultCellStyle.SelectionBackColor = $cSel; $grid.DefaultCellStyle.SelectionForeColor = [Drawing.Color]::White
+    $grid.DefaultCellStyle.Padding = New-Object Windows.Forms.Padding((px 4), 0, 0, 0)
+    $grid.ColumnHeadersDefaultCellStyle.BackColor = $cBg; $grid.ColumnHeadersDefaultCellStyle.ForeColor = $cMuted
+    $grid.ColumnHeadersDefaultCellStyle.SelectionBackColor = $cBg; $grid.ColumnHeadersDefaultCellStyle.Font = New-Object Drawing.Font('Segoe UI', 9)
+    $grid.ColumnHeadersDefaultCellStyle.Padding = New-Object Windows.Forms.Padding((px 4), 0, 0, 0)
+    $colIcon = New-Object Windows.Forms.DataGridViewImageColumn
+    $colIcon.HeaderText = ''; $colIcon.AutoSizeMode = 'None'; $colIcon.Width = px 46; $colIcon.ImageLayout = 'Zoom'; $colIcon.ReadOnly = $true
+    $colIcon.DefaultCellStyle.Padding = New-Object Windows.Forms.Padding((px 14), (px 11), (px 4), (px 11)); $colIcon.DefaultCellStyle.NullValue = $blank
+    $colAlias = New-Object Windows.Forms.DataGridViewTextBoxColumn
+    $colAlias.HeaderText = 'ALIAS'; $colAlias.FillWeight = 30
+    $colAlias.DefaultCellStyle.ForeColor = $cAlias; $colAlias.DefaultCellStyle.SelectionForeColor = $cAlias
+    $colAlias.DefaultCellStyle.Font = New-Object Drawing.Font('Segoe UI Semibold', 10)
+    $colTarget = New-Object Windows.Forms.DataGridViewTextBoxColumn
+    $colTarget.HeaderText = 'TARGET'; $colTarget.FillWeight = 70
+    $colDel = New-Object Windows.Forms.DataGridViewTextBoxColumn
+    $colDel.HeaderText = ''; $colDel.AutoSizeMode = 'None'; $colDel.Width = px 46; $colDel.ReadOnly = $true
+    $colDel.DefaultCellStyle.Alignment = 'MiddleCenter'; $colDel.DefaultCellStyle.ForeColor = $cMuted; $colDel.DefaultCellStyle.SelectionForeColor = $cMuted
+    $grid.Columns.AddRange([Windows.Forms.DataGridViewColumn[]]@($colIcon, $colAlias, $colTarget, $colDel))
+    foreach ($c in $grid.Columns) { $c.SortMode = 'NotSortable'; $c.Resizable = 'False' }
+    $cross = [string][char]0x2715
 
-    $save = New-Object Windows.Forms.Button; $save.Text = 'Save'; $save.Width = 110; $save.Height = 32
-    $cancel = New-Object Windows.Forms.Button; $cancel.Text = 'Cancel'; $cancel.Width = 90; $cancel.Height = 32
-    $del = New-Object Windows.Forms.Button; $del.Text = 'Delete row'; $del.Width = 150; $del.Height = 32
-    $bottom.Controls.AddRange(@($save, $cancel, $del))
+    $empty = New-Object Windows.Forms.Label
+    $empty.Dock = 'Fill'; $empty.TextAlign = 'MiddleCenter'; $empty.ForeColor = $cMuted; $empty.BackColor = $cBg
+    $empty.Text = "No aliases yet.`nAdd one above, for example  ch  " + [char]0x2192 + "  Google Chrome."
+    $listHost = New-Object Windows.Forms.Panel
+    $listHost.Dock = 'Fill'; $listHost.Padding = New-Object Windows.Forms.Padding((px 20), 0, (px 20), 0)
+    $listHost.Controls.AddRange(@($grid, $empty))
 
-    $del.Add_Click({
-        $r = $grid.CurrentRow
-        if ($r -and -not $r.IsNewRow) { $grid.Rows.Remove($r) }
-    })
-    $cancel.Add_Click({ $f.Close() })
-    $save.Add_Click({
-        [void]$grid.EndEdit()
+    # Footer: open alias.txt / Done
+    $foot = New-Object Windows.Forms.Panel
+    $foot.Dock = 'Bottom'; $foot.Height = px 60; $foot.Padding = New-Object Windows.Forms.Padding((px 20), (px 12), (px 20), (px 14))
+    $done = New-Button 'Done' $cIn $cInHover
+    $done.Dock = 'Right'; $done.Width = px 96
+    $open = New-Object Windows.Forms.LinkLabel
+    $open.Dock = 'Left'; $open.AutoSize = $false; $open.Width = px 200; $open.TextAlign = 'MiddleLeft'; $open.Text = 'Open alias.txt'
+    $open.LinkColor = $cMuted; $open.ActiveLinkColor = [Drawing.Color]::White; $open.LinkBehavior = 'HoverUnderline'
+    $foot.Controls.AddRange(@($done, $open))
+
+    $f.Controls.AddRange(@($listHost, $add, $head, $foot))   # Fill first: docked last, takes what's left
+
+    # ---- Behaviour ----
+    function Get-AliasIcon([string]$alias) {
+        $k = ConvertTo-Key $alias
+        $a = $script:apps | Where-Object { $_.Aliases -contains $k } | Select-Object -First 1
+        $img = if ($a) { Get-AppIcon $a }
+        if ($img) { $img } else { $blank }
+    }
+    function Import-AliasGrid {
+        $grid.Rows.Clear()
+        foreach ($line in Get-Content $aliasFile -Encoding UTF8) {
+            if ($line -match '^\s*#' -or $line -notmatch '^\s*([^=]+?)\s*=\s*(.+?)\s*$') { continue }
+            [void]$grid.Rows.Add((Get-AliasIcon $Matches[1]), $Matches[1], $Matches[2], $cross)
+        }
+        $grid.ClearSelection(); $empty.Visible = $grid.Rows.Count -eq 0
+        $script:aliasMgrStamp = (Get-Item $aliasFile).LastWriteTime
+    }
+    function Save-AliasGrid {
         $out = @($aliasHeader)
         foreach ($r in $grid.Rows) {
-            if ($r.IsNewRow) { continue }
-            $a = "$($r.Cells[0].Value)".Trim(); $c = "$($r.Cells[1].Value)".Trim()
+            $a = "$($r.Cells[1].Value)".Trim(); $c = "$($r.Cells[2].Value)".Trim()
             if ($a -and $c) { $out += "$a = $c" }
         }
         $out | Set-Content -Encoding UTF8 $aliasFile
         Import-Apps
-        $f.Close()
+        foreach ($r in $grid.Rows) { $r.Cells[0].Value = Get-AliasIcon "$($r.Cells[1].Value)" }
+        $empty.Visible = $grid.Rows.Count -eq 0
+        $script:aliasMgrStamp = (Get-Item $aliasFile).LastWriteTime
+    }
+    $addAlias = {
+        $a = $aliasBox.Text.Trim(); $t = $targetBox.Text.Trim()
+        if (-not $a) { $aliasBox.Focus(); return }
+        if (-not $t) { $targetBox.Focus(); return }
+        $k = ConvertTo-Key $a
+        foreach ($r in @($grid.Rows)) { if ((ConvertTo-Key "$($r.Cells[1].Value)") -eq $k) { $grid.Rows.Remove($r) } }   # same alias: replaced
+        $i = $grid.Rows.Add($blank, $a, $t, $cross)
+        Save-AliasGrid
+        $aliasBox.Text = ''; $targetBox.Text = ''; $aliasBox.Focus()
+        $grid.ClearSelection(); $grid.Rows[$i].Selected = $true; $grid.FirstDisplayedScrollingRowIndex = $i
+    }
+    $addBtn.Add_Click($addAlias)
+    $enter = { param($sender, $e) if ($e.KeyCode -eq 'Return') { $e.SuppressKeyPress = $true; & $addAlias } }
+    $aliasBox.Add_KeyDown($enter); $targetBox.Add_KeyDown($enter)
+
+    # Double-click (or F2) a cell to edit it; saved when the edit ends. Emptied alias or target: row removed.
+    $grid.Add_CellDoubleClick({ param($sender, $e) if ($e.RowIndex -ge 0 -and $e.ColumnIndex -in 1, 2) { $grid.BeginEdit($true) } })
+    $grid.Add_KeyDown({ param($sender, $e)
+        if ($e.KeyCode -eq 'F2' -and $grid.CurrentCell -and $grid.CurrentCell.ColumnIndex -in 1, 2) { $grid.BeginEdit($true); $e.Handled = $true }
+        elseif ($e.KeyCode -eq 'Delete' -and $grid.CurrentRow) { $grid.Rows.Remove($grid.CurrentRow); Save-AliasGrid; $e.Handled = $true }
+    })
+    $grid.Add_CellEndEdit({ param($sender, $e)
+        $r = $grid.Rows[$e.RowIndex]
+        if (-not "$($r.Cells[1].Value)".Trim() -or -not "$($r.Cells[2].Value)".Trim()) { $grid.BeginInvoke([Action]{ $grid.Rows.Remove($r); Save-AliasGrid }) | Out-Null }
+        else { Save-AliasGrid }
+    })
+    $grid.Add_EditingControlShowing({ param($sender, $e)
+        $tb = $e.Control -as [Windows.Forms.TextBox]; if (-not $tb) { return }
+        $tb.BackColor = $cIn; $tb.ForeColor = $cText
+        if ($grid.CurrentCell.ColumnIndex -eq 2) { $tb.AutoCompleteMode = 'SuggestAppend'; $tb.AutoCompleteSource = 'CustomSource'; $tb.AutoCompleteCustomSource = $names }
+        else { $tb.AutoCompleteMode = 'None' }
+    })
+    # Cross: delete the row (red on hover)
+    $grid.Add_CellMouseEnter({ param($sender, $e) if ($e.RowIndex -ge 0 -and $e.ColumnIndex -eq 3) { $c = $grid.Rows[$e.RowIndex].Cells[3]; $c.Style.ForeColor = $cDel; $c.Style.SelectionForeColor = $cDel; $grid.Cursor = 'Hand' } })
+    $grid.Add_CellMouseLeave({ param($sender, $e) if ($e.RowIndex -ge 0 -and $e.ColumnIndex -eq 3) { $c = $grid.Rows[$e.RowIndex].Cells[3]; $c.Style.ForeColor = $cMuted; $c.Style.SelectionForeColor = $cMuted; $grid.Cursor = 'Default' } })
+    $grid.Add_CellClick({ param($sender, $e) if ($e.RowIndex -ge 0 -and $e.ColumnIndex -eq 3) { $grid.Rows.RemoveAt($e.RowIndex); $grid.Cursor = 'Default'; Save-AliasGrid } })
+
+    $open.Add_LinkClicked({ Start-Process notepad.exe "`"$aliasFile`"" })
+    $done.Add_Click({ $f.Close() })
+    # Esc: clears the field being typed in (and its suggestion list) first, closes the window when it's empty
+    $f.Add_KeyDown({ param($sender, $e)
+        if ($e.KeyCode -ne 'Escape' -or $grid.IsCurrentCellInEditMode) { return }
+        $e.SuppressKeyPress = $true
+        $tb = $f.ActiveControl -as [Windows.Forms.TextBox]
+        if ($tb -and $tb.Text) { $tb.Text = '' } else { $f.Close() }
+    })
+    # alias.txt edited by hand meanwhile: reload
+    $f.Add_Activated({ if ((Get-Item $aliasFile).LastWriteTime -ne $script:aliasMgrStamp) { Import-Apps; Import-AliasGrid } })
+    $f.Add_Shown({
+        [LauncherNative]::Placeholder($aliasBox.Handle, 'Alias'); [LauncherNative]::Placeholder($targetBox.Handle, 'App, folder, URL or command')
+        foreach ($c in $grid.Controls) { [LauncherNative]::DarkScroll($c.Handle) }
+        if ($preset) { $targetBox.Text = $preset }
+        $aliasBox.Focus()
     })
 
-    $f.Controls.Add($grid)
-    $f.Controls.Add($info)
-    $f.Controls.Add($bottom)
+    Import-AliasGrid
+    [void]$f.Handle; [LauncherNative]::DarkTitle($f.Handle)
     [void]$f.ShowDialog()
 }
 

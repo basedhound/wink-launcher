@@ -1,4 +1,4 @@
-﻿# Taskbar Launcher
+# Taskbar Launcher
 
 A tiny app-launcher search box that lives **inside the Windows taskbar** (top or bottom), right next to the system icons.
 Type a few letters, it suggests your apps with their icons, press **Enter** or click to launch.
@@ -15,7 +15,7 @@ PowerShell 5.1 that ships with Windows.
 - **App icons** in the suggestions, and the selected app's icon in the box itself.
 - **Learns what you use**: frequently launched apps move to the top.
 - **Aliases**: type `ch=chrome` then Enter, and `ch` now launches Google Chrome.
-  Right-click a suggestion > *Give this app an alias*, or type `:alias` to open the alias manager.
+  Right-click a suggestion > *Give this app an alias*, or type `:alias` to open the alias manager (dark window: add, edit with a double-click, delete with the cross; changes are saved instantly).
 - **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder and it shows up in the search under its file name.
 - Paths, URLs and commands work too.
 - **Windows key**: tap it alone to open the bar instead of the Start menu (Win+E and other shortcuts still work, Ctrl+Esc opens Start).
@@ -59,9 +59,9 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 | Launch | **Enter** or click a suggestion |
 | Clear | **Ctrl+Space** (stay in the bar) or **Esc** (clear and go back to the previous window); Ctrl+Backspace deletes the last word |
 | Create an alias | `alias=app name`, then Enter |
-| Manage aliases | `:alias`, or right-click the bar |
+| Manage aliases | `:alias`, or right-click the bar > *Manage aliases* |
 | Move the bar left / right | right-click the bar > *Left* / *Right* |
-| Refresh the app list / quit | right-click the bar |
+| Refresh apps / quit | right-click the bar |
 | Reopen the bar | double-click `Start Bar.bat` |
 
 ## Settings
@@ -99,7 +99,7 @@ The log records starts, stops, every launch and any launch error, which is the f
 - **Nothing happens when double-clicking `Start Bar.bat`**: the bar may already be running (only one instance runs at a time);
   look for it in the taskbar (next to the clock, or on the left).
 - **Two apps with the same name** (for example the same web app installed in two browser profiles): only one is listed.
-  Rename one of their Start menu shortcuts (e.g. "Gemini (Work)"), then right-click the bar > *Refresh app list*.
+  Rename one of their Start menu shortcuts (e.g. "Gemini (Work)"), then right-click the bar > *Refresh apps*.
 
 ## How it works (for the curious)
 

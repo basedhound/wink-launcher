@@ -152,6 +152,11 @@ public class LauncherNative : NativeWindow {
     [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int cmd);
     public static void Hide(IntPtr h) { ShowWindow(h, 0); }
     public static void ShowNoActivate(IntPtr h) { ShowWindow(h, 4); }
+    // Dark title bar (Windows 10 20H1+ / 11; attribute 19 on older 10 builds) and dark scrollbars
+    [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h, int attr, ref int v, int size);
+    [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] static extern int SetWindowTheme(IntPtr h, string app, string id);
+    public static void DarkTitle(IntPtr h) { int on = 1; if (DwmSetWindowAttribute(h, 20, ref on, 4) != 0) DwmSetWindowAttribute(h, 19, ref on, 4); }
+    public static void DarkScroll(IntPtr h) { SetWindowTheme(h, "DarkMode_Explorer", null); }
     // Shows / hides the taskbar's Start button (the Start menu itself still opens with Ctrl+Esc).
     // Explorer may show it again (taskbar rebuilt, Explorer restarted), so this is called from the bar's timer.
     [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
@@ -621,8 +626,8 @@ $hk.add_HotKey({ $f = [LauncherNative]::OtherForeground(); if ($f -ne [IntPtr]::
 
 # Right-click menu: aliases, refresh, left / right, quit
 $menu = New-Object Windows.Forms.ContextMenuStrip
-[void]$menu.Items.Add('Manage aliases...', $null, { Reset-Bar; Show-AliasManager })
-[void]$menu.Items.Add('Refresh app list', $null, { Import-Apps; $script:icons = @{}; $script:iconByPath = @{}; Start-IconPreload })
+[void]$menu.Items.Add('Manage aliases', $null, { Reset-Bar; Show-AliasManager })
+[void]$menu.Items.Add('Refresh apps', $null, { Import-Apps; $script:icons = @{}; $script:iconByPath = @{}; Start-IconPreload })
 [void]$menu.Items.Add('-')
 $miLeft  = $menu.Items.Add('Left', $null, { Set-Side 'Left' })
 $miRight = $menu.Items.Add('Right', $null, { Set-Side 'Right' })
