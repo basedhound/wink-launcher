@@ -2,5 +2,8 @@
 alias.txt
 *.bak
 
-# Personal shortcuts and their icons (the folder is created on first run)
-shortcuts/
+# Personal shortcuts and their icons: only the empty folders are versioned
+# (via shortcuts/.icons/.gitkeep, out of sight inside the .icons folder)
+shortcuts/**
+!shortcuts/.icons/
+!shortcuts/.icons/.gitkeep

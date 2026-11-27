@@ -97,7 +97,7 @@ On the left, the Start button is always hidden (the bar takes its place). It com
 | `LauncherCore.ps1` | app list, search engine (C#), aliases, usage history, launching, alias manager window |
 | `Install.ps1` | registers the scheduled task and starts the bar |
 | `Start Bar.bat` | reopens the bar (double-click), even after *Quit*, and repairs the task if the folder was moved |
-| `shortcuts/` | your own shortcuts and files, searchable by file name (created on first run, not versioned); icons in `shortcuts/.icons` |
+| `shortcuts/` | your own shortcuts and files, searchable by file name, and `shortcuts/.icons` for their icons (the folders ship empty: their content stays personal) |
 | `alias.txt` | your aliases, created on first run (not versioned) |
 
 Usage history (`history.json`) and the log (`bar.log`) live in `%APPDATA%\Launcher`.
