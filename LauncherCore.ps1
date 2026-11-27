@@ -194,10 +194,23 @@ function Get-Games {
             Where-Object { $_.Name -match '^[0-9a-f]{40}\.jpg$' } | Select-Object -First 1
         New-Entry $installed[$id] "steam:$id" 'Steam' "steam://rungameid/$id" $(if ($icon) { $icon.FullName } else { Join-Path $steam 'steam.exe' })
     }
-    Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\GOG.com\Games\*', 'HKLM:\SOFTWARE\GOG.com\Games\*' -ErrorAction SilentlyContinue |
-        Where-Object { $_.gameName -and $_.exe -and (Test-Path -LiteralPath $_.exe) } |
-        ForEach-Object { New-Entry $_.gameName "gog:$($_.gameID)" 'GOG' $_.exe }
+    Get-GogInstalled | ForEach-Object { New-Entry $_.gameName "gog:$($_.gameID)" 'GOG' $_.exe }
 }
+
+# Installed GOG games: listed in the registry by their installer (only those whose game file is there)
+function Get-GogInstalled {
+    foreach ($root in 'SOFTWARE\WOW6432Node\GOG.com\Games', 'SOFTWARE\GOG.com\Games') {
+        $k = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey($root); if (-not $k) { continue }
+        foreach ($n in $k.GetSubKeyNames()) {
+            $g = $k.OpenSubKey($n); if (-not $g) { continue }
+            $name = $g.GetValue('gameName'); $exe = $g.GetValue('exe'); $id = $g.GetValue('gameID'); $g.Close()
+            if ($name -and $exe -and [IO.File]::Exists($exe)) { [pscustomobject]@{ gameName = $name; gameID = $(if ($id) { $id } else { $n }); exe = $exe } }
+        }
+        $k.Close()
+    }
+}
+# Changes when a GOG game is installed or uninstalled (fast: checked every few seconds)
+function Get-GogStamp { (@(Get-GogInstalled) | ForEach-Object { $_.gameID }) -join ',' }
 
 function Import-Apps {
     # Personal shortcuts: name = file name without extension ("C411.lnk" -> "C411").
@@ -234,7 +247,7 @@ function Import-Apps {
             }
         }
     } catch {}
-    try { $list += @(Get-Games); $script:gameStamp = Get-GameStamp } catch { Write-Log "Games not loaded: $($_.Exception.Message)" }
+    try { $list += @(Get-Games); $script:gameStamp = Get-GameStamp; $script:gogStamp = Get-GogStamp } catch { Write-Log "Games not loaded: $($_.Exception.Message)" }
     foreach ($line in Get-Content $aliasFile -Encoding UTF8) {
         if ($line -match '^\s*#' -or $line -notmatch '^\s*([^=]+?)\s*=\s*(.+?)\s*$') { continue }
         $alias = ConvertTo-Key $Matches[1]; $target = $Matches[2]

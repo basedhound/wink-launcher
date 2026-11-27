@@ -778,6 +778,15 @@ $script:gameWatchers = foreach ($d in @(Get-SteamLibraries)) {
     $w
 }
 
+# GOG games live in the registry (no file to watch): a quick look every 5 seconds, reload only if the list changed
+$gogCheck = New-Object Windows.Forms.Timer
+$gogCheck.Interval = 5000
+$gogCheck.Add_Tick({
+    if ($box.Focused -and $box.Text) { return }
+    if ((Get-GogStamp) -ne $script:gogStamp) { Write-Log 'GOG games changed: reloading apps'; Import-Apps; Start-IconPreload }
+})
+$gogCheck.Start()
+
 # Windows key alone opens the bar (Ctrl+Esc still opens the Start menu)
 $hk = New-Object LauncherNative
 if ($WindowsKey) { $hk.StartWinKey() }
