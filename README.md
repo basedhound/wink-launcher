@@ -29,7 +29,9 @@ it runs on the PowerShell 5.1 that ships with Windows.
   your browser with `--app=https://calendar.google.com/calendar/u/0/r/tasks` opens Calendar straight on Tasks,
   in its own window.
   Keep the icons your shortcuts use in `shortcuts\.icons` (ignored by the search).
-- **Empty Recycle Bin**: type `empty`, press Enter, confirm (it always asks first, even if Windows' own confirmation is turned off).
+- **Built-in actions**: *Shut down* (or *Turn off*), *Restart* (or *Reboot*), *Sign out* (or *Log off*), *Sleep*, *Lock*
+  and *Empty Recycle Bin*. The ones that close your apps or delete files ask first, with **Yes** as the default:
+  `shut`, Enter, Enter. The Recycle Bin always asks, even if Windows' own confirmation is turned off.
 - **Games, on demand**: installed Steam and GOG games stay out of the normal results (no Dark Souls every time you type `d`).
   Type `steam ` first: `steam dark` (or just `steam ds`) suggests Dark Souls, and `steam ` alone lists every installed game.
   Same with `gog `. Give a game an alias to launch it directly.
@@ -80,7 +82,9 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 | Launch | **Enter** or click a suggestion |
 | Clear | **Ctrl+Space** (stay in the bar) or **Esc** (clear and go back to the previous window); Ctrl+Backspace deletes the last word |
 | Search your games | `steam ` or `gog ` then the name (`steam dark souls`) |
-| Empty the Recycle Bin | `empty`, then Enter (asks first) |
+| Shut down / restart / sign out | `shut`, `restart` or `sign`, then Enter twice (asks first) |
+| Sleep / lock the PC | `sleep` or `lock`, then Enter |
+| Empty the Recycle Bin | `empty`, then Enter twice (asks first) |
 | Manage aliases | `:alias`, or right-click the bar > *Aliases* |
 | Create an alias | `alias=app name`, then Enter, or right-click a suggestion > *Give this app an alias* |
 | Edit / delete an alias | in the alias manager: double-click (or **F2**) to edit, the cross (or **Delete**) to delete |
@@ -110,7 +114,7 @@ On the left, the Start button is always hidden (the bar takes its place). It com
 | File | Purpose |
 |---|---|
 | `LauncherBar.ps1` | starts the bar (its settings are at the top) and loads the parts below |
-| `src/Catalog.ps1` | what the bar finds and launches: Start menu apps, shortcuts, Settings pages, Control Panel, actions, aliases, usage history |
+| `src/Catalog.ps1` | what the bar finds and launches: Start menu apps, shortcuts, Settings pages, Control Panel, built-in actions (shut down, restart...), aliases, usage history |
 | `src/Games.ps1` | installed Steam and GOG games |
 | `src/Search.cs` | the search engine (C#: matching and ranking) |
 | `src/Bar.ps1`, `src/Results.ps1`, `src/Input.ps1` | the search box and its place in the taskbar, the suggestion list, keyboard / mouse / menus |

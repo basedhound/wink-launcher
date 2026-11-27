@@ -274,6 +274,16 @@ public static class LauncherIcon {
         } catch { return null; }
         finally { if (hb != IntPtr.Zero) DeleteObject(hb); }
     }
+    // An icon stored in a file at an index ("shell32.dll,27"), with transparency
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    static extern int SHDefExtractIcon(string path, int index, uint flags, out IntPtr large, out IntPtr small, uint size);
+    [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr h);
+    public static Bitmap FromResource(string path, int index, int size) {
+        IntPtr large, small;
+        if (SHDefExtractIcon(path, index, 0, out large, out small, (uint)size) != 0 || large == IntPtr.Zero) return null;
+        try { using (var ico = Icon.FromHandle(large)) return ico.ToBitmap(); }
+        finally { DestroyIcon(large); }
+    }
     // A picture used as an icon (Steam games keep theirs as small jpgs): the shell would only give
     // the generic picture-file icon, so the picture itself is scaled down
     public static Bitmap FromPicture(string path, int size) {

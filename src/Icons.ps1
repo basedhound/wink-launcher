@@ -17,6 +17,7 @@ function Get-IconSource($a) {
 
 function Read-Icon([string]$path) {
     if ($path -match '\.(jpg|png)$') { return [LauncherIcon]::FromPicture($path, $iconPx) }   # Steam game pictures
+    if ($path -match '^(.+\.dll),(-?\d+)$') { return [LauncherIcon]::FromResource($Matches[1], [int]$Matches[2], $iconPx) }   # built-in actions
     [LauncherIcon]::Get($path, $iconPx)
 }
 

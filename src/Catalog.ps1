@@ -17,8 +17,8 @@ function ConvertTo-Key([string]$s) { [LauncherSearch]::Key($s) }
 # ---- Entries ----
 
 # Result kinds (shown as a small grey tag next to non-app results) and their ranking offset:
-# on equal match quality, apps come first.
-$kindBonus = @{ 'App' = 0; 'Shortcut' = 0; 'Command' = 0; 'Action' = 0; 'Control Panel' = -50; 'Settings' = -50 }
+# on equal match quality, apps come first ("sl" + Enter opens Slack, not Sleep).
+$kindBonus = @{ 'App' = 0; 'Shortcut' = 0; 'Command' = 0; 'Action' = -50; 'Control Panel' = -50; 'Settings' = -50 }
 
 $recycleBin   = '::{645FF040-5081-101B-9F08-00AA002F954E}'   # also its icon (full or empty)
 $cplIcon      = '::{26EE0668-A00A-44D7-9371-BEB064C98683}'
@@ -109,7 +109,28 @@ function Get-ControlPanelEntries([hashtable]$taken) {
     } catch {}
 }
 
-function Get-ActionEntries { New-Entry 'Empty Recycle Bin' 'action:empty-recycle-bin' 'Action' $null $recycleBin }
+# Built-in actions: Id -> names it's found by, icon ("file.dll,index" or a shell item), what it does.
+# The ones that close your apps ask first (Yes is the default: Enter confirms).
+$sys = Join-Path $env:WINDIR 'System32'
+$actions = [ordered]@{
+    'action:empty-recycle-bin' = @{ Names = @('Empty Recycle Bin'); Icon = $recycleBin; Run = { Invoke-EmptyRecycleBin } }
+    'action:shutdown' = @{ Names = @('Shut down', 'Turn off'); Icon = "$sys\shell32.dll,27"
+        Run = { if (Confirm-Action 'Shut down' 'Shut down the PC now?') { shutdown.exe /s /t 0 } } }
+    'action:restart'  = @{ Names = @('Restart', 'Reboot'); Icon = "$sys\imageres.dll,228"
+        Run = { if (Confirm-Action 'Restart' 'Restart the PC now?') { shutdown.exe /r /t 0 } } }
+    'action:signout'  = @{ Names = @('Sign out', 'Log off'); Icon = "$sys\shell32.dll,176"
+        Run = { if (Confirm-Action 'Sign out' 'Sign out of Windows now?') { shutdown.exe /l } } }
+    'action:sleep'    = @{ Names = @('Sleep'); Icon = "$sys\imageres.dll,96"
+        Run = { [void][Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false) } }
+    'action:lock'     = @{ Names = @('Lock'); Icon = "$sys\imageres.dll,54"
+        Run = { Start-Process rundll32.exe -ArgumentList 'user32.dll,LockWorkStation' } }
+}
+
+function Get-ActionEntries {
+    foreach ($id in $actions.Keys) {
+        foreach ($name in $actions[$id].Names) { New-Entry $name $id 'Action' $null $actions[$id].Icon }
+    }
+}
 
 # ---- Aliases ----
 
@@ -185,7 +206,7 @@ function Import-Apps {
     $list.AddRange($shortcuts)
     $taken = @{}
     foreach ($a in $list) { $taken[$a.Key] = $true }
-    [void]$list.Add((Get-ActionEntries))
+    $list.AddRange(@(Get-ActionEntries))
     # Settings pages before Control Panel: "Add or remove programs" opens the modern page, as in Windows Search
     $list.AddRange(@(Get-SettingsEntries $taken))
     $list.AddRange(@(Get-ControlPanelEntries $taken))
@@ -227,19 +248,23 @@ function Get-AppLabel($a) {
 
 # ---- Launching ----
 
-# Built-in action: asks first (Windows' own confirmation can be turned off), then empties the Recycle Bin
+# Yes / No question, Yes being the default (Enter confirms)
+function Confirm-Action([string]$title, [string]$question) {
+    [Windows.Forms.MessageBox]::Show($question, $title, 'YesNo', 'Warning', 'Button1') -eq 'Yes'
+}
+
+# Asks first (Windows' own confirmation can be turned off), then empties the Recycle Bin
 function Invoke-EmptyRecycleBin {
     $n = (New-Object -ComObject Shell.Application).Namespace(10).Items().Count
     if (-not $n) { [void][Windows.Forms.MessageBox]::Show('The Recycle Bin is already empty.', 'Recycle Bin', 'OK', 'Information'); return }
-    $msg = "Permanently delete $n item$(if ($n -gt 1) { 's' }) in the Recycle Bin?"
-    if ([Windows.Forms.MessageBox]::Show($msg, 'Empty Recycle Bin', 'YesNo', 'Warning', 'Button1') -ne 'Yes') { return }   # Yes is the default: Enter confirms
+    if (-not (Confirm-Action 'Empty Recycle Bin' "Permanently delete $n item$(if ($n -gt 1) { 's' }) in the Recycle Bin?")) { return }
     Clear-RecycleBin -Force -ErrorAction SilentlyContinue
 }
 
 function Start-Entry($app) {
     if ($app.Shell) { $app.Shell.InvokeVerb() }                                                    # Control Panel item
     elseif ($app.Kind -eq 'Settings') { [void][Diagnostics.Process]::Start($app.Target) }          # ms-settings: page
-    elseif ($app.Id -eq 'action:empty-recycle-bin') { Invoke-EmptyRecycleBin }
+    elseif ($app.Kind -eq 'Action') { & $actions[$app.Id].Run }                                    # built-in action
     elseif ($app.Kind -eq 'GOG') { Start-Process $app.Target -WorkingDirectory (Split-Path $app.Target) }   # games expect their own folder
     elseif ($app.Target) { Start-Process $app.Target }
     else { Start-Process explorer.exe "shell:AppsFolder\$($app.Id)" }                              # Start menu app
