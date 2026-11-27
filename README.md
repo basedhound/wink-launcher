@@ -17,8 +17,11 @@ PowerShell 5.1 that ships with Windows.
 - **Aliases**: type `ch=chrome` then Enter, and `ch` now launches Google Chrome.
   Right-click a suggestion > *Give this app an alias*, or type `:alias` to open the alias manager (dark window: add, edit with a double-click, delete with the cross; changes are saved instantly).
 - **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder (right-click the bar > *Shortcuts*) and it shows up in the search under its file name.
+- **Games, on demand**: installed Steam and GOG games stay out of the normal results (no Elden Ring every time you type `e`).
+  Type `steam ` first: `steam e` suggests Elden Ring, `steam ds` Dark Souls, and `steam ` alone lists every installed game.
+  Same with `gog `. Give a game an alias to launch it directly.
 - **Always up to date**: a newly installed program is searchable a few seconds after its installer finishes
-  (Windows tells the bar when the Start menu changes; Microsoft Store apps are picked up within 30 minutes).
+  (Windows tells the bar when the Start menu changes; Microsoft Store apps and games are picked up within 30 minutes).
 - Paths, URLs and commands work too.
 - **Windows key**: tap it alone to open the bar instead of the Start menu (Win+E and other shortcuts still work, Ctrl+Esc opens Start).
 - Works with the taskbar at the top or bottom of the screen, on the **right** (next to the clock) or the **left**
@@ -60,6 +63,7 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 | Move through suggestions | **Up / Down** |
 | Launch | **Enter** or click a suggestion |
 | Clear | **Ctrl+Space** (stay in the bar) or **Esc** (clear and go back to the previous window); Ctrl+Backspace deletes the last word |
+| Search your games | `steam ` or `gog ` then the name (`steam elden`) |
 | Create an alias | `alias=app name`, then Enter |
 | Manage aliases | `:alias`, or right-click the bar > *Aliases* |
 | Open the shortcuts folder | right-click the bar > *Shortcuts* |

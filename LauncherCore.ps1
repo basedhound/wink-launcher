@@ -67,14 +67,21 @@ public static class LauncherSearch {
     }
     // aliases[i] = aliases separated by '|'
     // bonus[i] = ranking offset for the kind of result (apps 0, Control Panel and Settings negative)
-    public static int[] Find(string[] keys, string[] aliases, int[] hits, int[] bonus, string text, int max) {
-        string q = Key((text ?? "").Trim());
+    // groups[i] = "" for normal results, or a prefix ("steam", "gog") for entries searched only after it:
+    // "steam e" searches Steam games for "e", "steam " lists them all; elsewhere they only answer to their aliases
+    public static int[] Find(string[] keys, string[] aliases, int[] hits, int[] bonus, string[] groups, string text, int max) {
+        string q = Key((text ?? "").TrimStart());
+        string grp = "";
+        foreach (var g in groups)
+            if (g.Length > 0 && q.StartsWith(g + " ", StringComparison.Ordinal)) { grp = g; q = q.Substring(g.Length + 1); break; }
+        q = q.Trim();
         // Strong matches (apps, shortcuts, Control Panel items, Settings pages starting like the text);
         // if there are none, weak matches (text inside a word, letters in order) on apps and shortcuts
         var res = new List<int[]>();
         var weak = new List<int[]>();
         for (int i = 0; i < keys.Length; i++) {
-            int s = q.Length == 0 ? 1 : Score(keys[i], q);
+            if (groups[i] != grp && (grp.Length > 0 || q.Length == 0)) continue;
+            int s = groups[i] != grp ? 0 : q.Length == 0 ? 1 : Score(keys[i], q);
             if (q.Length > 0 && aliases[i].Length > 0)
                 foreach (var a in aliases[i].Split('|')) {
                     if (a == q) s = Math.Max(s, 2000);
@@ -87,9 +94,9 @@ public static class LauncherSearch {
             else res.Add(r);
         }
         if (res.Count == 0) res = weak;
-        // best score first, then the shortest name (Excel before Exceed Share)
+        // best score first, then the shortest name (Excel before Exceed Share); a full list ("steam ") is alphabetical
         res.Sort((x, y) => y[1] != x[1] ? y[1].CompareTo(x[1])
-                         : keys[x[0]].Length != keys[y[0]].Length ? keys[x[0]].Length.CompareTo(keys[y[0]].Length)
+                         : q.Length > 0 && keys[x[0]].Length != keys[y[0]].Length ? keys[x[0]].Length.CompareTo(keys[y[0]].Length)
                          : string.CompareOrdinal(keys[x[0]], keys[y[0]]));
         var o = new int[Math.Min(max, res.Count)];
         for (int i = 0; i < o.Length; i++) o[i] = res[i][0];
@@ -133,6 +140,39 @@ function New-Entry($name, $id, $kind, $target = $null, $iconPath = $null, $shell
     [pscustomobject]@{ Name = $name; Id = $id; Kind = $kind; Target = $target; IconPath = $iconPath; Shell = $shell; Key = (ConvertTo-Key $name); Aliases = @() }
 }
 
+# Installed games, kept out of the normal results: searched only after their prefix ("steam elden", "gog ")
+$gameGroups = @{ 'Steam' = 'steam'; 'GOG' = 'gog' }
+function Get-Games {
+    $steam = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamPath
+    if ($steam) {
+        $steam = $steam -replace '/', '\'
+        $libs = @($steam)
+        $vdf = Join-Path $steam 'steamapps\libraryfolders.vdf'   # every Steam library folder (other drives included)
+        if (Test-Path -LiteralPath $vdf) {
+            $libs += [regex]::Matches((Get-Content -LiteralPath $vdf -Raw -Encoding UTF8), '"path"\s+"([^"]+)"') | ForEach-Object { $_.Groups[1].Value -replace '\\\\', '\' }
+        }
+        $seen = @{}
+        foreach ($lib in $libs) {
+            foreach ($f in Get-ChildItem -LiteralPath (Join-Path $lib 'steamapps') -Filter 'appmanifest_*.acf' -ErrorAction SilentlyContinue) {
+                $t = Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8
+                $id = [regex]::Match($t, '"appid"\s+"(\d+)"').Groups[1].Value
+                $name = [regex]::Match($t, '"name"\s+"([^"]+)"').Groups[1].Value
+                $flags = [int][regex]::Match($t, '"StateFlags"\s+"(\d+)"').Groups[1].Value
+                # fully installed games only, not Steam's own runtimes
+                if (-not $id -or -not $name -or $seen[$id] -or -not ($flags -band 4) -or $name -match '^(Steamworks|Proton|Steam Linux Runtime)') { continue }
+                $seen[$id] = $true
+                # Steam keeps each game's small icon as a 32x32 jpg named by its hash
+                $icon = Get-ChildItem -LiteralPath (Join-Path $steam "appcache\librarycache\$id") -ErrorAction SilentlyContinue |
+                    Where-Object { $_.Name -match '^[0-9a-f]{40}\.jpg$' } | Select-Object -First 1
+                New-Entry $name "steam:$id" 'Steam' "steam://rungameid/$id" $(if ($icon) { $icon.FullName } else { Join-Path $steam 'steam.exe' })
+            }
+        }
+    }
+    Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\GOG.com\Games\*', 'HKLM:\SOFTWARE\GOG.com\Games\*' -ErrorAction SilentlyContinue |
+        Where-Object { $_.gameName -and $_.exe -and (Test-Path -LiteralPath $_.exe) } |
+        ForEach-Object { New-Entry $_.gameName "gog:$($_.gameID)" 'GOG' $_.exe }
+}
+
 function Import-Apps {
     $list = @(Get-StartApps | Where-Object { $_.Name -and $_.AppID } | Sort-Object Name -Unique | ForEach-Object { New-Entry $_.Name $_.AppID 'App' })
     $taken = @{}; foreach ($a in $list) { $taken[$a.Key] = $true }
@@ -158,6 +198,7 @@ function Import-Apps {
             }
         }
     } catch {}
+    try { $list += @(Get-Games) } catch { Write-Log "Games not loaded: $($_.Exception.Message)" }
     foreach ($line in Get-Content $aliasFile -Encoding UTF8) {
         if ($line -match '^\s*#' -or $line -notmatch '^\s*([^=]+?)\s*=\s*(.+?)\s*$') { continue }
         $alias = ConvertTo-Key $Matches[1]; $target = $Matches[2]
@@ -176,6 +217,7 @@ function Import-Apps {
     $script:aliasArr = [string[]]@($list | ForEach-Object { $_.Aliases -join '|' })
     $script:hits = [int[]]@($list | ForEach-Object { [int]$script:hist[$_.Id] })
     $script:bonus = [int[]]@($list | ForEach-Object { [int]$kindBonus[$_.Kind] })
+    $script:groups = [string[]]@($list | ForEach-Object { [string]$gameGroups[$_.Kind] })
     for ($i = 0; $i -lt $list.Count; $i++) { $list[$i] | Add-Member -NotePropertyName Idx -NotePropertyValue $i -Force }
     $script:aliasStamp = (Get-Item $aliasFile).LastWriteTime
     $script:shortcutStamp = Get-ShortcutStamp
@@ -188,7 +230,7 @@ function Update-AppsIfStale {
 
 # Callers must wrap the result in @(...): with a single match PowerShell 5.1 returns the object alone, with no .Count
 function Find-Apps([string]$text, [int]$max = 15) {
-    $idx = [LauncherSearch]::Find($script:keys, $script:aliasArr, $script:hits, $script:bonus, $text, $max)
+    $idx = [LauncherSearch]::Find($script:keys, $script:aliasArr, $script:hits, $script:bonus, $script:groups, $text, $max)
     @(foreach ($i in $idx) { $script:apps[$i] })
 }
 
@@ -206,6 +248,7 @@ function Invoke-Launch($app, [string]$text) {
             Write-Log "Launch: $($app.Name) [$($app.Kind) $($app.Id)]"
             if ($app.Shell) { $app.Shell.InvokeVerb() }                                    # Control Panel item
             elseif ($app.Kind -eq 'Settings') { [void][Diagnostics.Process]::Start($app.Target) }   # ms-settings: page
+            elseif ($app.Kind -eq 'GOG') { Start-Process $app.Target -WorkingDirectory (Split-Path $app.Target) }   # games expect their own folder
             elseif ($app.Target) { Start-Process $app.Target }
             else { Start-Process explorer.exe "shell:AppsFolder\$($app.Id)" }
             $script:hist[$app.Id] = [int]$script:hist[$app.Id] + 1
