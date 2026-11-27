@@ -227,8 +227,10 @@ function Import-Apps {
         if ($line -match '^\s*#' -or $line -notmatch '^\s*([^=]+?)\s*=\s*(.+?)\s*$') { continue }
         $alias = ConvertTo-Key $Matches[1]; $target = $Matches[2]
         $app = $list | Where-Object { $_.Name -eq $target } | Select-Object -First 1
+        # Start of a name ("mus" -> Music): apps, shortcuts, Settings pages, games... (the shortest name wins)
         if (-not $app -and $target -notmatch '[\\/:.]') {
-            $app = $list | Where-Object { -not $_.Target -and $_.Name -like "$target*" } | Sort-Object { $_.Name.Length } | Select-Object -First 1
+            $tk = ConvertTo-Key $target
+            $app = $list | Where-Object { $_.Kind -ne 'Command' -and $_.Key.StartsWith($tk, [StringComparison]::Ordinal) } | Sort-Object { $_.Name.Length } | Select-Object -First 1
         }
         if (-not $app) {
             $app = New-Entry $target $target 'Command' $target
