@@ -496,6 +496,11 @@ $list.DrawMode = 'OwnerDrawFixed'
 $list.ItemHeight = [int](34 * $scale)
 $tagFont = New-Object Drawing.Font('Segoe UI', 8)
 $pop.Controls.Add($list)
+$maxResults  = 100   # results kept (the list scrolls past $visibleRows)
+$visibleRows = 10
+$list.Add_HandleCreated({ [LauncherNative]::DarkScroll($list.Handle) })   # dark scrollbar
+# The focus stays in the box: wheel over the box scrolls the suggestions too
+$box.Add_MouseWheel({ if ($pop.Visible) { $list.TopIndex = [Math]::Max(0, $list.TopIndex - [Math]::Sign($_.Delta) * 3) } })
 
 # Draws one row: icon + name
 $list.Add_DrawItem({
@@ -542,10 +547,10 @@ function Show-Results {
     # "ch=chrome": alias creation mode
     if ($box.Text -match '^\s*([^=]+?)\s*=\s*(.*)$') {
         $script:aliasMode = $Matches[1]
-        $script:results = @(Find-Apps $Matches[2] 10)
+        $script:results = @(Find-Apps $Matches[2] $maxResults)
     } else {
         $script:aliasMode = $null
-        $script:results = @(Find-Apps $box.Text 10)
+        $script:results = @(Find-Apps $box.Text $maxResults)
     }
     $list.BeginUpdate(); $list.Items.Clear()
     foreach ($a in $script:results) {
@@ -556,7 +561,8 @@ function Show-Results {
     $list.EndUpdate()
     Update-BarIcon
     if (-not $list.Items.Count) { $pop.Hide(); return }
-    $ph = $list.Items.Count * $list.ItemHeight + [int](12 * $scale) + 4   # +4: avoids a useless scrollbar
+    # At most $visibleRows rows; beyond that the list scrolls (wheel, Up/Down, scrollbar)
+    $ph = [Math]::Min($list.Items.Count, $visibleRows) * $list.ItemHeight + [int](12 * $scale) + 4   # +4: avoids a useless scrollbar
     $px = [Math]::Min($script:barX, [Windows.Forms.Screen]::PrimaryScreen.Bounds.Right - $popW - 4)
     # Taskbar at the top: suggestions below; at the bottom: above
     $py = if ($script:tbAtTop) { $script:tbBottom + [int](6 * $scale) } else { $script:tbTop - $ph - [int](6 * $scale) }
