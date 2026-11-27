@@ -232,7 +232,7 @@ function Invoke-EmptyRecycleBin {
     $n = (New-Object -ComObject Shell.Application).Namespace(10).Items().Count
     if (-not $n) { [void][Windows.Forms.MessageBox]::Show('The Recycle Bin is already empty.', 'Recycle Bin', 'OK', 'Information'); return }
     $msg = "Permanently delete $n item$(if ($n -gt 1) { 's' }) in the Recycle Bin?"
-    if ([Windows.Forms.MessageBox]::Show($msg, 'Empty Recycle Bin', 'YesNo', 'Warning', 'Button2') -ne 'Yes') { return }
+    if ([Windows.Forms.MessageBox]::Show($msg, 'Empty Recycle Bin', 'YesNo', 'Warning', 'Button1') -ne 'Yes') { return }   # Yes is the default: Enter confirms
     Clear-RecycleBin -Force -ErrorAction SilentlyContinue
 }
 
