@@ -63,8 +63,17 @@ public class DarkMenuColors : ProfessionalColorTable {
 public class DarkMenuRenderer : ToolStripProfessionalRenderer {
     static readonly Color Text = Color.FromArgb(235, 235, 235), Line = Color.FromArgb(70, 70, 70);
     public DarkMenuRenderer() : base(new DarkMenuColors()) { RoundedEdges = false; }
+    static readonly Color Hover = Color.FromArgb(62, 62, 62);
+    // Highlight over the item's full height (the default one is 1 px short at the bottom)
+    protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e) {
+        if (!e.Item.Selected || !e.Item.Enabled) return;
+        using (var b = new SolidBrush(Hover)) e.Graphics.FillRectangle(b, 3, 0, e.Item.Width - 6, e.Item.Height);
+    }
+    // Text centred on the item's full height (the default text box sits a few pixels too high)
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e) {
-        e.TextColor = e.Item.Enabled ? Text : Color.Gray; base.OnRenderItemText(e);
+        var r = new Rectangle(e.TextRectangle.X, 0, e.TextRectangle.Width, e.Item.Height);
+        TextRenderer.DrawText(e.Graphics, e.Text, e.TextFont, r, e.Item.Enabled ? Text : Color.Gray,
+            TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix);
     }
     // Light check mark, drawn by hand (the default one is black)
     protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e) {
