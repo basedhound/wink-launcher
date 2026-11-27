@@ -40,7 +40,7 @@ every 5 minutes that it is still running (no console window flashes).
 **Moved the folder?** Just double-click `Start Bar.bat` in its new location: it notices the task points
 to the old folder and re-registers it from the new one.
 
-**Uninstall**: right-click the bar > *Quit the bar*, then run
+**Uninstall**: right-click the bar > *Quit*, then run
 
 ```powershell
 Unregister-ScheduledTask -TaskName LauncherBar -Confirm:$false
@@ -59,9 +59,9 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 | Launch | **Enter** or click a suggestion |
 | Clear | **Ctrl+Space** (stay in the bar) or **Esc** (clear and go back to the previous window); Ctrl+Backspace deletes the last word |
 | Create an alias | `alias=app name`, then Enter |
-| Manage aliases | `:alias`, or right-click the bar > *Manage aliases* |
-| Move the bar left / right | right-click the bar > *Left* / *Right* |
-| Refresh apps / quit | right-click the bar |
+| Manage aliases | `:alias`, or right-click the bar > *Aliases* |
+| Move the bar left / right | right-click the bar > *Move to left* / *Move to right* |
+| Refresh the app list / quit | right-click the bar > *Refresh* / *Quit* |
 | Reopen the bar | double-click `Start Bar.bat` |
 
 ## Settings
@@ -85,7 +85,7 @@ On the left, the Start button is always hidden (the bar takes its place). It com
 | `LauncherBar.ps1` | the search box in the taskbar |
 | `LauncherCore.ps1` | app list, search engine (C#), aliases, usage history, launching, alias manager window |
 | `Install.ps1` | registers the scheduled task and starts the bar |
-| `Start Bar.bat` | reopens the bar (double-click), even after *Quit the bar*, and repairs the task if the folder was moved |
+| `Start Bar.bat` | reopens the bar (double-click), even after *Quit*, and repairs the task if the folder was moved |
 | `shortcuts/` | your own shortcuts and files, searchable by file name |
 | `alias.txt` | your aliases, created on first run (not versioned) |
 
@@ -99,7 +99,7 @@ The log records starts, stops, every launch and any launch error, which is the f
 - **Nothing happens when double-clicking `Start Bar.bat`**: the bar may already be running (only one instance runs at a time);
   look for it in the taskbar (next to the clock, or on the left).
 - **Two apps with the same name** (for example the same web app installed in two browser profiles): only one is listed.
-  Rename one of their Start menu shortcuts (e.g. "Gemini (Work)"), then right-click the bar > *Refresh apps*.
+  Rename one of their Start menu shortcuts (e.g. "Gemini (Work)"), then right-click the bar > *Refresh*.
 
 ## How it works (for the curious)
 

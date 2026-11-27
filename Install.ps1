@@ -19,7 +19,7 @@ $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -Execution
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
 Register-ScheduledTask -TaskName 'LauncherBar' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
 
-# Start now (and cancel a previous "Quit the bar")
+# Start now (and cancel a previous "Quit")
 Remove-Item (Join-Path $env:APPDATA 'Launcher\stopped') -ErrorAction SilentlyContinue
 Start-ScheduledTask -TaskName 'LauncherBar'
 Write-Host 'Launcher installed: the bar shows up in the taskbar (click it or tap the Windows key).'

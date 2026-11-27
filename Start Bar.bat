@@ -1,5 +1,5 @@
 @echo off
-rem Reopens the launcher bar, even after "Quit the bar".
+rem Reopens the launcher bar, even after "Quit".
 rem If the LauncherBar scheduled task is missing or points to another folder (the Launcher
 rem folder was moved), it is re-registered from here via Install.ps1, which also starts the bar.
 powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command ^

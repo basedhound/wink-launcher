@@ -672,20 +672,16 @@ $hk = New-Object LauncherNative
 if ($WindowsKey) { $hk.StartWinKey() }
 $hk.add_HotKey({ $f = [LauncherNative]::OtherForeground(); if ($f -ne [IntPtr]::Zero) { $script:prevWin = $f }; if ($script:hidden) { [LauncherNative]::ShowNoActivate($bar.Handle); $script:hidden = $false }; [LauncherNative]::Front($bar.Handle); $bar.Activate(); $box.Focus(); $box.SelectAll() })
 
-# Right-click menu: aliases, refresh, left / right, quit
+# Right-click menu: aliases, refresh, move to the other side, quit
 $menu = New-Object Windows.Forms.ContextMenuStrip
-[void]$menu.Items.Add('Manage aliases', $null, { Reset-Bar; Show-AliasManager })
-[void]$menu.Items.Add('Refresh apps', $null, { Import-Apps; $script:icons = @{}; $script:iconByPath = @{}; Start-IconPreload })
+[void]$menu.Items.Add('Aliases', $null, { Reset-Bar; Show-AliasManager })
+[void]$menu.Items.Add('Refresh', $null, { Import-Apps; $script:icons = @{}; $script:iconByPath = @{}; Start-IconPreload })
+# One item that names the other side (top / bottom follows the taskbar)
+$miMove = $menu.Items.Add('Move to left', $null, { Set-Side $(if ($script:side -eq 'Left') { 'Right' } else { 'Left' }) })
+$menu.Add_Opening({ $miMove.Text = if ($script:side -eq 'Left') { 'Move to right' } else { 'Move to left' } })
 [void]$menu.Items.Add('-')
-$miLeft  = $menu.Items.Add('Left', $null, { Set-Side 'Left' })
-$miRight = $menu.Items.Add('Right', $null, { Set-Side 'Right' })
-# Check mark on the current side (top / bottom follows the taskbar)
-$menu.Add_Opening({
-    $miLeft.Checked = $script:side -eq 'Left'; $miRight.Checked = $script:side -eq 'Right'
-})
-[void]$menu.Items.Add('-')
-[void]$menu.Items.Add('Quit the bar', $null, { Write-Log 'Quit (menu)'; Set-Content $stopFlag '' -ErrorAction SilentlyContinue; $bar.Close() })
-Set-DarkMenu $menu $true
+[void]$menu.Items.Add('Quit', $null, { Write-Log 'Quit (menu)'; Set-Content $stopFlag '' -ErrorAction SilentlyContinue; $bar.Close() })
+Set-DarkMenu $menu $false
 $bar.ContextMenuStrip = $menu
 $box.ContextMenuStrip = $menu
 $pic.ContextMenuStrip = $menu
