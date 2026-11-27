@@ -759,6 +759,25 @@ $script:watchers = foreach ($d in @([Environment]::GetFolderPath('Programs'), [E
     $w
 }
 
+# Steam game installed or uninstalled: its appmanifest file appears, changes or disappears in a library folder.
+# Steam rewrites these files during downloads too, so the list only reloads if the set of installed games changed.
+$gameCheck = New-Object Windows.Forms.Timer
+$gameCheck.Interval = 3000
+$gameCheck.Add_Tick({
+    if ($box.Focused -and $box.Text) { return }
+    $gameCheck.Stop()
+    if ((Get-GameStamp) -ne $script:gameStamp) { Write-Log 'Steam games changed: reloading apps'; Import-Apps; Start-IconPreload }
+})
+$script:gameWatchers = foreach ($d in @(Get-SteamLibraries)) {
+    $w = New-Object IO.FileSystemWatcher $d, 'appmanifest_*.acf'
+    $w.NotifyFilter = [IO.NotifyFilters]'FileName, LastWrite'
+    $w.SynchronizingObject = $bar
+    $onGame = { $gameCheck.Stop(); $gameCheck.Start() }
+    $w.Add_Created($onGame); $w.Add_Deleted($onGame); $w.Add_Renamed($onGame); $w.Add_Changed($onGame)
+    $w.EnableRaisingEvents = $true
+    $w
+}
+
 # Windows key alone opens the bar (Ctrl+Esc still opens the Start menu)
 $hk = New-Object LauncherNative
 if ($WindowsKey) { $hk.StartWinKey() }

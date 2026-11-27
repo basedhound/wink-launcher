@@ -25,7 +25,7 @@ PowerShell 5.1 that ships with Windows.
   Type `steam ` first: `steam e` suggests Elden Ring, `steam ds` Dark Souls, and `steam ` alone lists every installed game.
   Same with `gog `. Give a game an alias to launch it directly.
 - **Always up to date**: a newly installed program is searchable a few seconds after its installer finishes
-  (Windows tells the bar when the Start menu changes; Microsoft Store apps and games are picked up within 30 minutes).
+  (Windows tells the bar when the Start menu changes; so does Steam when a game is installed or uninstalled; Microsoft Store apps and GOG games are picked up within 30 minutes).
 - Paths, URLs and commands work too.
 - **Windows key**: tap it alone to open the bar instead of the Start menu (Win+E and other shortcuts still work, Ctrl+Esc opens Start).
 - Works with the taskbar at the top or bottom of the screen, on the **right** (next to the clock) or the **left**

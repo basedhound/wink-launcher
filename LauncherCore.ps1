@@ -156,31 +156,43 @@ function New-Entry($name, $id, $kind, $target = $null, $iconPath = $null, $shell
 
 # Installed games, kept out of the normal results: searched only after their prefix ("steam elden", "gog ")
 $gameGroups = @{ 'Steam' = 'steam'; 'GOG' = 'gog' }
+function Get-SteamPath { $p = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamPath; if ($p) { $p -replace '/', '\' } }
+# Every Steam library's steamapps folder (other drives included)
+function Get-SteamLibraries {
+    $steam = Get-SteamPath; if (-not $steam) { return }
+    $libs = @($steam)
+    $vdf = Join-Path $steam 'steamapps\libraryfolders.vdf'
+    if (Test-Path -LiteralPath $vdf) {
+        $libs += [regex]::Matches((Get-Content -LiteralPath $vdf -Raw -Encoding UTF8), '"path"\s+"([^"]+)"') | ForEach-Object { $_.Groups[1].Value -replace '\\\\', '\' }
+    }
+    $libs | ForEach-Object { Join-Path $_ 'steamapps' } | Where-Object { Test-Path -LiteralPath $_ } | Sort-Object -Unique
+}
+# Installed Steam games: appid -> name (fully installed only, not Steam's own runtimes)
+function Get-SteamInstalled {
+    $res = [ordered]@{}
+    foreach ($dir in Get-SteamLibraries) {
+        foreach ($f in Get-ChildItem -LiteralPath $dir -Filter 'appmanifest_*.acf' -ErrorAction SilentlyContinue) {
+            $t = Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8
+            $id = [regex]::Match($t, '"appid"\s+"(\d+)"').Groups[1].Value
+            $name = [regex]::Match($t, '"name"\s+"([^"]+)"').Groups[1].Value
+            $flags = [int][regex]::Match($t, '"StateFlags"\s+"(\d+)"').Groups[1].Value
+            if (-not $id -or -not $name -or $res.Contains($id) -or -not ($flags -band 4) -or $name -match '^(Steamworks|Proton|Steam Linux Runtime)') { continue }
+            $res[$id] = $name
+        }
+    }
+    $res
+}
+# Changes when a Steam game is installed or uninstalled (cheap: used to decide whether to reload)
+function Get-GameStamp { (Get-SteamInstalled).Keys -join ',' }
+
 function Get-Games {
-    $steam = (Get-ItemProperty 'HKCU:\Software\Valve\Steam' -ErrorAction SilentlyContinue).SteamPath
-    if ($steam) {
-        $steam = $steam -replace '/', '\'
-        $libs = @($steam)
-        $vdf = Join-Path $steam 'steamapps\libraryfolders.vdf'   # every Steam library folder (other drives included)
-        if (Test-Path -LiteralPath $vdf) {
-            $libs += [regex]::Matches((Get-Content -LiteralPath $vdf -Raw -Encoding UTF8), '"path"\s+"([^"]+)"') | ForEach-Object { $_.Groups[1].Value -replace '\\\\', '\' }
-        }
-        $seen = @{}
-        foreach ($lib in $libs) {
-            foreach ($f in Get-ChildItem -LiteralPath (Join-Path $lib 'steamapps') -Filter 'appmanifest_*.acf' -ErrorAction SilentlyContinue) {
-                $t = Get-Content -LiteralPath $f.FullName -Raw -Encoding UTF8
-                $id = [regex]::Match($t, '"appid"\s+"(\d+)"').Groups[1].Value
-                $name = [regex]::Match($t, '"name"\s+"([^"]+)"').Groups[1].Value
-                $flags = [int][regex]::Match($t, '"StateFlags"\s+"(\d+)"').Groups[1].Value
-                # fully installed games only, not Steam's own runtimes
-                if (-not $id -or -not $name -or $seen[$id] -or -not ($flags -band 4) -or $name -match '^(Steamworks|Proton|Steam Linux Runtime)') { continue }
-                $seen[$id] = $true
-                # Steam keeps each game's small icon as a 32x32 jpg named by its hash
-                $icon = Get-ChildItem -LiteralPath (Join-Path $steam "appcache\librarycache\$id") -ErrorAction SilentlyContinue |
-                    Where-Object { $_.Name -match '^[0-9a-f]{40}\.jpg$' } | Select-Object -First 1
-                New-Entry $name "steam:$id" 'Steam' "steam://rungameid/$id" $(if ($icon) { $icon.FullName } else { Join-Path $steam 'steam.exe' })
-            }
-        }
+    $steam = Get-SteamPath
+    $installed = Get-SteamInstalled
+    foreach ($id in $installed.Keys) {
+        # Steam keeps each game's small icon as a 32x32 jpg named by its hash
+        $icon = Get-ChildItem -LiteralPath (Join-Path $steam "appcache\librarycache\$id") -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match '^[0-9a-f]{40}\.jpg$' } | Select-Object -First 1
+        New-Entry $installed[$id] "steam:$id" 'Steam' "steam://rungameid/$id" $(if ($icon) { $icon.FullName } else { Join-Path $steam 'steam.exe' })
     }
     Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\GOG.com\Games\*', 'HKLM:\SOFTWARE\GOG.com\Games\*' -ErrorAction SilentlyContinue |
         Where-Object { $_.gameName -and $_.exe -and (Test-Path -LiteralPath $_.exe) } |
@@ -222,7 +234,7 @@ function Import-Apps {
             }
         }
     } catch {}
-    try { $list += @(Get-Games) } catch { Write-Log "Games not loaded: $($_.Exception.Message)" }
+    try { $list += @(Get-Games); $script:gameStamp = Get-GameStamp } catch { Write-Log "Games not loaded: $($_.Exception.Message)" }
     foreach ($line in Get-Content $aliasFile -Encoding UTF8) {
         if ($line -match '^\s*#' -or $line -notmatch '^\s*([^=]+?)\s*=\s*(.+?)\s*$') { continue }
         $alias = ConvertTo-Key $Matches[1]; $target = $Matches[2]
