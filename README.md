@@ -28,7 +28,7 @@ PowerShell 5.1 that ships with Windows.
   Keep the icons your shortcuts use in `shortcuts\.icons` (ignored by the search).
 - **Empty Recycle Bin**: type `empty`, press Enter, confirm (it always asks first, even if Windows' own confirmation is turned off).
 - **Games, on demand**: installed Steam and GOG games stay out of the normal results (no Dark Souls every time you type `d`).
-  Type `steam ` first: `steam dark souls` (or just `steam ds`) suggests Dark Souls, and `steam ` alone lists every installed game.
+  Type `steam ` first: `steam dark` (or just `steam ds`) suggests Dark Souls, and `steam ` alone lists every installed game.
   Same with `gog `. Give a game an alias to launch it directly.
 - **Always up to date**: a newly installed program is searchable a few seconds after its installer finishes
   (Windows tells the bar when the Start menu changes; same for Steam and GOG games when one is installed or uninstalled; Microsoft Store apps are picked up within 30 minutes).
