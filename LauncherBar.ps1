@@ -676,16 +676,32 @@ $refresh.Interval = 30 * 60 * 1000
 $refresh.Add_Tick({ if (-not $box.Focused) { Import-Apps; Start-IconPreload } })   # icon cache kept: only new apps get loaded
 $refresh.Start()
 
+# Installed or uninstalled a program: Windows tells us (Start menu folders changed), the list reloads
+# a few seconds later (an installer writes several files), never while typing. Store apps: the 30 min refresh.
+$reload = New-Object Windows.Forms.Timer
+$reload.Interval = 3000
+$reload.Add_Tick({ if (-not $box.Focused -or -not $box.Text) { $reload.Stop(); Write-Log 'Start menu changed: reloading apps'; Import-Apps; Start-IconPreload } })
+$script:watchers = foreach ($d in @([Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('CommonPrograms'))) {
+    if (-not (Test-Path -LiteralPath $d)) { continue }
+    $w = New-Object IO.FileSystemWatcher $d
+    $w.IncludeSubdirectories = $true
+    $w.NotifyFilter = [IO.NotifyFilters]'FileName, DirectoryName'
+    $w.SynchronizingObject = $bar   # events arrive on the UI thread
+    $onChange = { $reload.Stop(); $reload.Start() }
+    $w.Add_Created($onChange); $w.Add_Deleted($onChange); $w.Add_Renamed($onChange)
+    $w.EnableRaisingEvents = $true
+    $w
+}
+
 # Windows key alone opens the bar (Ctrl+Esc still opens the Start menu)
 $hk = New-Object LauncherNative
 if ($WindowsKey) { $hk.StartWinKey() }
 $hk.add_HotKey({ $f = [LauncherNative]::OtherForeground(); if ($f -ne [IntPtr]::Zero) { $script:prevWin = $f }; if ($script:hidden) { [LauncherNative]::ShowNoActivate($bar.Handle); $script:hidden = $false }; [LauncherNative]::Front($bar.Handle); $bar.Activate(); $box.Focus(); $box.SelectAll() })
 
-# Right-click menu: aliases, refresh, move to the other side, quit
+# Right-click menu: aliases, shortcuts folder, move to the other side, quit
 $menu = New-Object Windows.Forms.ContextMenuStrip
 [void]$menu.Items.Add('Aliases', $null, { Reset-Bar; Show-AliasManager })
 [void]$menu.Items.Add('Shortcuts', $null, { Reset-Bar; Start-Process explorer.exe "`"$shortcutDir`"" })   # new files show up in the search by themselves
-[void]$menu.Items.Add('Refresh', $null, { Import-Apps; $script:icons = @{}; $script:iconByPath = @{}; Start-IconPreload })
 # One item that names the other side (top / bottom follows the taskbar)
 $miMove = $menu.Items.Add('Move to left', $null, { Set-Side $(if ($script:side -eq 'Left') { 'Right' } else { 'Left' }) })
 $menu.Add_Opening({ $miMove.Text = if ($script:side -eq 'Left') { 'Move to right' } else { 'Move to left' } })

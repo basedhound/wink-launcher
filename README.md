@@ -17,6 +17,8 @@ PowerShell 5.1 that ships with Windows.
 - **Aliases**: type `ch=chrome` then Enter, and `ch` now launches Google Chrome.
   Right-click a suggestion > *Give this app an alias*, or type `:alias` to open the alias manager (dark window: add, edit with a double-click, delete with the cross; changes are saved instantly).
 - **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder (right-click the bar > *Shortcuts*) and it shows up in the search under its file name.
+- **Always up to date**: a newly installed program is searchable a few seconds after its installer finishes
+  (Windows tells the bar when the Start menu changes; Microsoft Store apps are picked up within 30 minutes).
 - Paths, URLs and commands work too.
 - **Windows key**: tap it alone to open the bar instead of the Start menu (Win+E and other shortcuts still work, Ctrl+Esc opens Start).
 - Works with the taskbar at the top or bottom of the screen, on the **right** (next to the clock) or the **left**
@@ -62,7 +64,7 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 | Manage aliases | `:alias`, or right-click the bar > *Aliases* |
 | Open the shortcuts folder | right-click the bar > *Shortcuts* |
 | Move the bar left / right | right-click the bar > *Move to left* / *Move to right* |
-| Refresh the app list / quit | right-click the bar > *Refresh* / *Quit* |
+| Quit the bar | right-click the bar > *Quit* |
 | Reopen the bar | double-click `Start Bar.bat` |
 
 ## Settings
@@ -100,7 +102,7 @@ The log records starts, stops, every launch and any launch error, which is the f
 - **Nothing happens when double-clicking `Start Bar.bat`**: the bar may already be running (only one instance runs at a time);
   look for it in the taskbar (next to the clock, or on the left).
 - **Two apps with the same name** (for example the same web app installed in two browser profiles): only one is listed.
-  Rename one of their Start menu shortcuts (e.g. "Gemini (Work)"), then right-click the bar > *Refresh*.
+  Rename one of their Start menu shortcuts (e.g. "Gemini (Work)"): the bar picks it up a few seconds later.
 
 ## How it works (for the curious)
 
