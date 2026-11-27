@@ -259,7 +259,7 @@ function Invoke-Launch($app, [string]$text) {
         if ($text) { Start-Process $text; return $true }
     } catch {
         Write-Log "Launch failed: $(if ($app) { "$($app.Name) [$($app.Id)]" } else { $text }): $($_.Exception.Message)"
-        [void][Windows.Forms.MessageBox]::Show("Couldn't launch: $what", 'Launcher')
+        [void][Windows.Forms.MessageBox]::Show("Couldn't launch: $what", 'Wink')
     }
     $false
 }

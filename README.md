@@ -1,6 +1,8 @@
-# Taskbar Launcher
+# Wink
 
-A tiny app-launcher search box that lives **inside the Windows taskbar** (top or bottom), next to the clock or in place of the Start button.
+**A tiny app launcher inside the Windows taskbar.** Tap the Windows key, type, launch.
+
+A search box that lives **inside the taskbar** (top or bottom), next to the clock or in place of the Start button.
 Type a few letters, it suggests your apps with their icons, press **Enter** or click to launch.
 
 ![Launcher in the taskbar: typing "se" suggests Settings, Services, Security and Maintenance...; typing "steam " lists the installed Steam games](docs/screenshot.png)

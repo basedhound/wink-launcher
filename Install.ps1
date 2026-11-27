@@ -1,4 +1,4 @@
-# Installs the Launcher: a scheduled task that starts the bar at logon
+# Installs Wink: a scheduled task that starts the bar at logon
 # and restarts it by itself (checked every 5 minutes) if it was closed by accident.
 # No admin rights needed.
 $dir = $PSScriptRoot
@@ -22,4 +22,4 @@ Register-ScheduledTask -TaskName 'LauncherBar' -Action $action -Trigger $trigger
 # Start now (and cancel a previous "Quit")
 Remove-Item (Join-Path $env:APPDATA 'Launcher\stopped') -ErrorAction SilentlyContinue
 Start-ScheduledTask -TaskName 'LauncherBar'
-Write-Host 'Launcher installed: the bar shows up in the taskbar (click it or tap the Windows key).'
+Write-Host 'Wink installed: the bar shows up in the taskbar (click it or tap the Windows key).'
