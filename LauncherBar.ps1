@@ -485,8 +485,12 @@ $pop.BackColor = $bgPop
 $pop.Padding = New-Object Windows.Forms.Padding([int](6 * $scale))
 $popW = [int](360 * $scale)
 
+# The list's own scrollbar is pushed out of view by a clipping panel (always there, so rows keep the same width);
+# a thin rounded thumb is drawn over the list instead.
+$clip = New-Object Windows.Forms.Panel
+$clip.Dock = 'Fill'
 $list = New-Object Windows.Forms.ListBox
-$list.Dock = 'Fill'
+$list.ScrollAlwaysVisible = $true
 $list.Font = New-Object Drawing.Font('Segoe UI', 11)
 $list.BackColor = $bgPop
 $list.ForeColor = [Drawing.Color]::Gainsboro
@@ -495,12 +499,53 @@ $list.IntegralHeight = $false
 $list.DrawMode = 'OwnerDrawFixed'
 $list.ItemHeight = [int](34 * $scale)
 $tagFont = New-Object Drawing.Font('Segoe UI', 8)
-$pop.Controls.Add($list)
-$maxResults  = 100   # results kept (the list scrolls past $visibleRows)
+$clip.Controls.Add($list)
+$pop.Controls.Add($clip)
+$clip.Add_Resize({ $list.Bounds = New-Object Drawing.Rectangle(0, 0, ($clip.Width + [Windows.Forms.SystemInformation]::VerticalScrollBarWidth), $clip.Height); Update-Thumb })
+# Normal searches show 10 results at most; game lists ("steam ", "gog ") keep up to 100 and scroll
 $visibleRows = 10
-$list.Add_HandleCreated({ [LauncherNative]::DarkScroll($list.Handle) })   # dark scrollbar
+$maxGames    = 100
+$gamePrefix  = '^\s*(' + (($gameGroups.Values | ForEach-Object { [regex]::Escape($_) }) -join '|') + ')\s'
+
+$thumbCol  = [Drawing.Color]::FromArgb(95, 98, 108)
+$thumbHot  = [Drawing.Color]::FromArgb(140, 144, 156)
+$thumb = New-Object Windows.Forms.Panel
+$thumb.Width = [int](4 * $scale)
+$thumb.BackColor = $thumbCol
+$thumb.Visible = $false
+$clip.Controls.Add($thumb); $thumb.BringToFront()
+function Update-Thumb {
+    $n = $list.Items.Count; $vis = [Math]::Max(1, [int][Math]::Floor($list.ClientSize.Height / $list.ItemHeight))
+    if ($n -le $vis) { if ($thumb.Visible) { $thumb.Visible = $false }; return }
+    $trackH = $clip.Height - [int](4 * $scale)
+    $h = [Math]::Max([int](24 * $scale), [int]($trackH * $vis / $n))
+    $y = [int](2 * $scale) + [int](($trackH - $h) * [Math]::Min(1.0, $list.TopIndex / ($n - $vis)))
+    $b = New-Object Drawing.Rectangle(($clip.Width - $thumb.Width - [int](2 * $scale)), $y, $thumb.Width, $h)
+    if ($thumb.Bounds -ne $b) {
+        $thumb.Bounds = $b
+        $path = New-Object Drawing.Drawing2D.GraphicsPath   # rounded ends
+        $d = $thumb.Width
+        $path.AddArc(0, 0, $d, $d, 180, 180); $path.AddArc(0, $h - $d, $d, $d, 0, 180); $path.CloseFigure()
+        $thumb.Region = New-Object Drawing.Region $path
+    }
+    if (-not $thumb.Visible) { $thumb.Visible = $true }
+}
+# Dragging the thumb scrolls the list
+$thumb.Add_MouseEnter({ $thumb.BackColor = $thumbHot })
+$thumb.Add_MouseLeave({ if (-not $script:thumbDrag) { $thumb.BackColor = $thumbCol } })
+$thumb.Add_MouseDown({ $script:thumbDrag = @{ Y = [Windows.Forms.Control]::MousePosition.Y; Top = $list.TopIndex } })
+$thumb.Add_MouseUp({ $script:thumbDrag = $null; if (-not $thumb.ClientRectangle.Contains($thumb.PointToClient([Windows.Forms.Control]::MousePosition))) { $thumb.BackColor = $thumbCol } })
+$thumb.Add_MouseMove({
+    if (-not $script:thumbDrag) { return }
+    $n = $list.Items.Count; $vis = [int][Math]::Floor($list.ClientSize.Height / $list.ItemHeight)
+    $span = $clip.Height - [int](4 * $scale) - $thumb.Height
+    if ($span -le 0 -or $n -le $vis) { return }
+    $dy = [Windows.Forms.Control]::MousePosition.Y - $script:thumbDrag.Y
+    $list.TopIndex = [Math]::Max(0, [Math]::Min($n - $vis, $script:thumbDrag.Top + [int][Math]::Round($dy * ($n - $vis) / $span)))
+    Update-Thumb
+})
 # The focus stays in the box: wheel over the box scrolls the suggestions too
-$box.Add_MouseWheel({ if ($pop.Visible) { $list.TopIndex = [Math]::Max(0, $list.TopIndex - [Math]::Sign($_.Delta) * 3) } })
+$box.Add_MouseWheel({ if ($pop.Visible) { $list.TopIndex = [Math]::Max(0, $list.TopIndex - [Math]::Sign($_.Delta) * 3); Update-Thumb } })
 
 # Draws one row: icon + name
 $list.Add_DrawItem({
@@ -530,6 +575,7 @@ $list.Add_DrawItem({
     $col = if ($sel) { [Drawing.Color]::White } else { [Drawing.Color]::Gainsboro }
     $flags = [Windows.Forms.TextFormatFlags]'VerticalCenter, Left, SingleLine, EndEllipsis, NoPrefix'
     [Windows.Forms.TextRenderer]::DrawText($gr, [string]$list.Items[$e.Index], $list.Font, $rect, $col, $flags)
+    Update-Thumb   # rows get redrawn whenever the list scrolls (wheel, arrows)
 })
 
 $script:results = @()
@@ -547,11 +593,12 @@ function Show-Results {
     # "ch=chrome": alias creation mode
     if ($box.Text -match '^\s*([^=]+?)\s*=\s*(.*)$') {
         $script:aliasMode = $Matches[1]
-        $script:results = @(Find-Apps $Matches[2] $maxResults)
+        $q = $Matches[2]
     } else {
         $script:aliasMode = $null
-        $script:results = @(Find-Apps $box.Text $maxResults)
+        $q = $box.Text
     }
+    $script:results = @(Find-Apps $q $(if ($q -match $gamePrefix) { $maxGames } else { $visibleRows }))
     $list.BeginUpdate(); $list.Items.Clear()
     foreach ($a in $script:results) {
         if ($script:aliasMode) { [void]$list.Items.Add("Alias  $($script:aliasMode)  $arrow  $($a.Name)") }
@@ -562,11 +609,12 @@ function Show-Results {
     Update-BarIcon
     if (-not $list.Items.Count) { $pop.Hide(); return }
     # At most $visibleRows rows; beyond that the list scrolls (wheel, Up/Down, scrollbar)
-    $ph = [Math]::Min($list.Items.Count, $visibleRows) * $list.ItemHeight + [int](12 * $scale) + 4   # +4: avoids a useless scrollbar
+    $ph = [Math]::Min($list.Items.Count, $visibleRows) * $list.ItemHeight + [int](12 * $scale) + 4
     $px = [Math]::Min($script:barX, [Windows.Forms.Screen]::PrimaryScreen.Bounds.Right - $popW - 4)
     # Taskbar at the top: suggestions below; at the bottom: above
     $py = if ($script:tbAtTop) { $script:tbBottom + [int](6 * $scale) } else { $script:tbTop - $ph - [int](6 * $scale) }
     $pop.Bounds = New-Object Drawing.Rectangle($px, $py, $popW, $ph)
+    $list.TopIndex = 0; Update-Thumb
     if (-not $pop.Visible) { $pop.Show() }
     [LauncherNative]::AttachToTaskbar($pop.Handle)
     [LauncherNative]::KeepOnTop($pop.Handle)
