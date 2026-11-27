@@ -69,10 +69,10 @@ public static class LauncherSearch {
     // bonus[i] = ranking offset for the kind of result (apps 0, Control Panel tasks negative...)
     public static int[] Find(string[] keys, string[] aliases, int[] hits, int[] bonus, string text, int max) {
         string q = Key((text ?? "").Trim());
-        // Three tiers, each used only if the previous one is empty:
+        // Three tiers:
         //   1. apps, shortcuts, Control Panel items, Settings pages starting like the text
-        //   2. Control Panel tasks starting like the text (they are long and numerous)
-        //   3. weak matches (text inside a word, letters in order) on apps and shortcuts
+        //   2. then Control Panel tasks starting like the text (long and numerous, so always listed after tier 1)
+        //   3. only if both are empty: weak matches (text inside a word, letters in order) on apps and shortcuts
         var res = new List<int[]>();
         var tasks = new List<int[]>();
         var weak = new List<int[]>();
@@ -90,11 +90,14 @@ public static class LauncherSearch {
             else if (bonus[i] <= -200) tasks.Add(r);
             else res.Add(r);
         }
-        if (res.Count == 0) res = tasks.Count > 0 ? tasks : weak;
         // best score first, then the shortest name (Excel before Exceed Share)
-        res.Sort((x, y) => y[1] != x[1] ? y[1].CompareTo(x[1])
+        Comparison<int[]> order = (x, y) => y[1] != x[1] ? y[1].CompareTo(x[1])
                          : keys[x[0]].Length != keys[y[0]].Length ? keys[x[0]].Length.CompareTo(keys[y[0]].Length)
-                         : string.CompareOrdinal(keys[x[0]], keys[y[0]]));
+                         : string.CompareOrdinal(keys[x[0]], keys[y[0]]);
+        res.Sort(order); tasks.Sort(order);
+        // Control Panel tasks fill the slots left after the main results ("remove" -> Remove a device, then the tasks)
+        res.AddRange(tasks);
+        if (res.Count == 0) { weak.Sort(order); res = weak; }
         var o = new int[Math.Min(max, res.Count)];
         for (int i = 0; i < o.Length; i++) o[i] = res[i][0];
         return o;
@@ -127,6 +130,10 @@ $settingsPages = [ordered]@{
     'Privacy' = 'privacy'; 'Microphone privacy' = 'privacy-microphone'; 'Camera privacy' = 'privacy-webcam'; 'Location privacy' = 'privacy-location'
     'Windows Update' = 'windowsupdate'; 'Windows Security' = 'windowsdefender'; 'Backup' = 'backup'; 'Troubleshoot' = 'troubleshoot'
     'Recovery' = 'recovery'; 'Activation' = 'activation'; 'For developers' = 'developers'
+    # Other names Windows Search knows these pages by
+    'Add or remove programs' = 'appsfeatures'; 'Uninstall apps' = 'appsfeatures'; 'Remove a device' = 'bluetooth'
+    'Add a device' = 'bluetooth'; 'Change your background' = 'personalization-background'; 'Screen resolution' = 'display'
+    'Check for updates' = 'windowsupdate'; 'Reset this PC' = 'recovery'; 'Optional features' = 'optionalfeatures'
 }
 
 function New-Entry($name, $id, $kind, $target = $null, $iconPath = $null, $shell = $null) {
@@ -138,6 +145,13 @@ function Import-Apps {
     $taken = @{}; foreach ($a in $list) { $taken[$a.Key] = $true }
     # Personal shortcuts: name = file name without extension ("C411.lnk" -> "C411")
     foreach ($f in Get-ShortcutFiles) { $list += New-Entry $f.BaseName $f.FullName 'Shortcut' $f.FullName }
+    # Settings pages before Control Panel: "Add or remove programs" opens the modern page, as in Windows Search
+    foreach ($p in $settingsPages.GetEnumerator()) {
+        $k = ConvertTo-Key $p.Key
+        if ($taken[$k]) { continue }
+        $taken[$k] = $true
+        $list += New-Entry $p.Key "ms-settings:$($p.Value)" 'Settings' "ms-settings:$($p.Value)" $settingsIcon
+    }
     # Control Panel items (Indexing Options, Power Options...) and tasks ("Change how your mouse works"...), like Windows Search.
     # Opened through their shell item, which needs an STA thread (the bar's is).
     try {
@@ -153,10 +167,6 @@ function Import-Apps {
             }
         }
     } catch {}
-    foreach ($p in $settingsPages.GetEnumerator()) {
-        if ($taken[(ConvertTo-Key $p.Key)]) { continue }
-        $list += New-Entry $p.Key "ms-settings:$($p.Value)" 'Settings' "ms-settings:$($p.Value)" $settingsIcon
-    }
     foreach ($line in Get-Content $aliasFile -Encoding UTF8) {
         if ($line -match '^\s*#' -or $line -notmatch '^\s*([^=]+?)\s*=\s*(.+?)\s*$') { continue }
         $alias = ConvertTo-Key $Matches[1]; $target = $Matches[2]
