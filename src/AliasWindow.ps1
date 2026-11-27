@@ -51,10 +51,11 @@ function New-AliasHeader {
     $head
 }
 
-# Names offered while typing a target (Start menu apps)
+# Names offered while typing a target: everything the bar finds (apps, your shortcuts, Settings pages,
+# Control Panel items, games, actions), not the targets of other aliases (paths, URLs, commands)
 function New-AliasNameList {
     $names = New-Object Windows.Forms.AutoCompleteStringCollection
-    $names.AddRange([string[]]@($script:apps | Where-Object { -not $_.Target } | ForEach-Object { $_.Name }))
+    $names.AddRange([string[]]@($script:apps | Where-Object { $_.Kind -ne 'Command' } | ForEach-Object { $_.Name } | Sort-Object -Unique))
     , $names
 }
 
