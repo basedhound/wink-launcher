@@ -1,0 +1,5 @@
+# Windows scripts: always checked out (and zipped by GitHub) with CRLF line endings
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.md  text eol=crlf
+*.png binary

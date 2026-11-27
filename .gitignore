@@ -1,0 +1,7 @@
+# Personal aliases (created automatically on first run)
+alias.txt
+*.bak
+
+# Personal shortcuts (the folder itself is kept via .gitkeep)
+shortcuts/*
+!shortcuts/.gitkeep
