@@ -3,7 +3,7 @@
 A tiny app-launcher search box that lives **inside the Windows taskbar** (top or bottom), right next to the system icons.
 Type a few letters, it suggests your apps with their icons, press **Enter** or click to launch.
 
-![Launcher in the taskbar: typing "se" suggests Services, Settings, Security and Maintenance...](docs/screenshot.png)
+![Launcher in the taskbar: typing "se" suggests Settings, Services, Security and Maintenance...; typing "steam " lists the installed Steam games](docs/screenshot.png)
 
 Written in plain PowerShell + WinForms (with a bit of inline C#): nothing to install, it runs on the
 PowerShell 5.1 that ships with Windows.
