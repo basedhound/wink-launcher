@@ -40,6 +40,46 @@ public class LauncherPopup : Form {
         base.WndProc(ref m);
     }
 }
+// Dark right-click menus (same colours as the bar and the alias manager)
+public class DarkMenuColors : ProfessionalColorTable {
+    static readonly Color Bg = Color.FromArgb(43, 43, 43), Hover = Color.FromArgb(62, 62, 62), Line = Color.FromArgb(70, 70, 70);
+    public override Color ToolStripDropDownBackground { get { return Bg; } }
+    public override Color ImageMarginGradientBegin { get { return Bg; } }
+    public override Color ImageMarginGradientMiddle { get { return Bg; } }
+    public override Color ImageMarginGradientEnd { get { return Bg; } }
+    public override Color MenuBorder { get { return Line; } }
+    public override Color MenuItemBorder { get { return Hover; } }
+    public override Color MenuItemSelected { get { return Hover; } }
+    public override Color MenuItemSelectedGradientBegin { get { return Hover; } }
+    public override Color MenuItemSelectedGradientEnd { get { return Hover; } }
+    public override Color MenuItemPressedGradientBegin { get { return Hover; } }
+    public override Color MenuItemPressedGradientEnd { get { return Hover; } }
+    public override Color CheckBackground { get { return Bg; } }
+    public override Color CheckSelectedBackground { get { return Hover; } }
+    public override Color CheckPressedBackground { get { return Hover; } }
+    public override Color SeparatorDark { get { return Line; } }
+    public override Color SeparatorLight { get { return Bg; } }
+}
+public class DarkMenuRenderer : ToolStripProfessionalRenderer {
+    static readonly Color Text = Color.FromArgb(235, 235, 235), Line = Color.FromArgb(70, 70, 70);
+    public DarkMenuRenderer() : base(new DarkMenuColors()) { RoundedEdges = false; }
+    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e) {
+        e.TextColor = e.Item.Enabled ? Text : Color.Gray; base.OnRenderItemText(e);
+    }
+    // Light check mark, drawn by hand (the default one is black)
+    protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e) {
+        var r = e.ImageRectangle; var g = e.Graphics;
+        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using (var p = new Pen(Text, Math.Max(1.5f, r.Height / 9f)))
+            g.DrawLines(p, new[] { new PointF(r.Left + r.Width * 0.22f, r.Top + r.Height * 0.52f),
+                                   new PointF(r.Left + r.Width * 0.42f, r.Top + r.Height * 0.72f),
+                                   new PointF(r.Left + r.Width * 0.80f, r.Top + r.Height * 0.30f) });
+    }
+    protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e) {
+        var r = e.Item.ContentRectangle; int y = r.Top + r.Height / 2;
+        using (var p = new Pen(Line)) e.Graphics.DrawLine(p, r.Left + 6, y, r.Right - 6, y);
+    }
+}
 public class LauncherNative : NativeWindow {
     [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
     [DllImport("user32.dll")] static extern bool SetWindowPos(IntPtr h, IntPtr after, int x, int y, int cx, int cy, uint flags);
@@ -551,6 +591,14 @@ $itemMenu = New-Object Windows.Forms.ContextMenuStrip
     }
 })
 $list.ContextMenuStrip = $itemMenu
+# Dark menus: shared renderer, roomier items
+$darkMenu = New-Object DarkMenuRenderer
+function Set-DarkMenu($m, [bool]$checks) {
+    $m.Renderer = $darkMenu; $m.Font = New-Object Drawing.Font('Segoe UI', 10)
+    $m.ShowImageMargin = $false; $m.ShowCheckMargin = $checks
+    foreach ($i in $m.Items) { if ($i -is [Windows.Forms.ToolStripMenuItem]) { $i.Padding = New-Object Windows.Forms.Padding([int](6 * $scale), [int](4 * $scale), [int](12 * $scale), [int](4 * $scale)) } }
+}
+Set-DarkMenu $itemMenu $false
 $list.Add_MouseDown({ if ($_.Button -eq 'Right') { $i = $list.IndexFromPoint($_.Location); if ($i -ge 0) { $list.SelectedIndex = $i } } })
 
 $box.Add_GotFocus({ $n = $script:apps.Count; Update-AppsIfStale; if ($script:apps.Count -ne $n) { Start-IconPreload }; if ($box.Text) { Show-Results } })
@@ -637,6 +685,7 @@ $menu.Add_Opening({
 })
 [void]$menu.Items.Add('-')
 [void]$menu.Items.Add('Quit the bar', $null, { Write-Log 'Quit (menu)'; Set-Content $stopFlag '' -ErrorAction SilentlyContinue; $bar.Close() })
+Set-DarkMenu $menu $true
 $bar.ContextMenuStrip = $menu
 $box.ContextMenuStrip = $menu
 $pic.ContextMenuStrip = $menu
