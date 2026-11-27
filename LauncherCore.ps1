@@ -110,7 +110,17 @@ function ConvertTo-Key([string]$s) { [LauncherSearch]::Key($s) }
 
 # Result kinds (shown as a small grey tag next to non-app results) and their ranking offset:
 # on equal match quality, apps come first.
-$kindBonus = @{ 'App' = 0; 'Shortcut' = 0; 'Command' = 0; 'Control Panel' = -50; 'Settings' = -50 }
+$kindBonus = @{ 'App' = 0; 'Shortcut' = 0; 'Command' = 0; 'Action' = 0; 'Control Panel' = -50; 'Settings' = -50 }
+$recycleBin = '::{645FF040-5081-101B-9F08-00AA002F954E}'   # also its icon (full or empty)
+
+# Built-in action: asks first (Windows' own confirmation can be turned off), then empties the Recycle Bin
+function Invoke-EmptyRecycleBin {
+    $n = (New-Object -ComObject Shell.Application).Namespace(10).Items().Count
+    if (-not $n) { [void][Windows.Forms.MessageBox]::Show('The Recycle Bin is already empty.', 'Recycle Bin', 'OK', 'Information'); return }
+    $msg = "Permanently delete $n item$(if ($n -gt 1) { 's' }) in the Recycle Bin?"
+    if ([Windows.Forms.MessageBox]::Show($msg, 'Empty Recycle Bin', 'YesNo', 'Warning', 'Button2') -ne 'Yes') { return }
+    Clear-RecycleBin -Force -ErrorAction SilentlyContinue
+}
 $cplIcon      = '::{26EE0668-A00A-44D7-9371-BEB064C98683}'
 $settingsIcon = 'shell:AppsFolder\windows.immersivecontrolpanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel'
 
@@ -178,6 +188,7 @@ function Import-Apps {
     $taken = @{}; foreach ($a in $list) { $taken[$a.Key] = $true }
     # Personal shortcuts: name = file name without extension ("C411.lnk" -> "C411")
     foreach ($f in Get-ShortcutFiles) { $list += New-Entry $f.BaseName $f.FullName 'Shortcut' $f.FullName }
+    $list += New-Entry 'Empty Recycle Bin' 'action:empty-recycle-bin' 'Action' $null $recycleBin
     # Settings pages before Control Panel: "Add or remove programs" opens the modern page, as in Windows Search
     foreach ($p in $settingsPages.GetEnumerator()) {
         $k = ConvertTo-Key $p.Key
@@ -248,6 +259,7 @@ function Invoke-Launch($app, [string]$text) {
             Write-Log "Launch: $($app.Name) [$($app.Kind) $($app.Id)]"
             if ($app.Shell) { $app.Shell.InvokeVerb() }                                    # Control Panel item
             elseif ($app.Kind -eq 'Settings') { [void][Diagnostics.Process]::Start($app.Target) }   # ms-settings: page
+            elseif ($app.Id -eq 'action:empty-recycle-bin') { Invoke-EmptyRecycleBin }
             elseif ($app.Kind -eq 'GOG') { Start-Process $app.Target -WorkingDirectory (Split-Path $app.Target) }   # games expect their own folder
             elseif ($app.Target) { Start-Process $app.Target }
             else { Start-Process explorer.exe "shell:AppsFolder\$($app.Id)" }
