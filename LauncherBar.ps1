@@ -345,7 +345,7 @@ function Get-AppIcon($a) {
         if (Test-Path -LiteralPath $t -ErrorAction SilentlyContinue) { $path = (Resolve-Path -LiteralPath $t).Path }
         else { $cmd = Get-Command $t -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1; if ($cmd) { $path = $cmd.Source } }
     } else { $path = "shell:AppsFolder\$($a.Id)" }
-    # Same icon file for many entries (Control Panel tasks, Settings pages): extracted only once
+    # Same icon file for many entries (Settings pages): extracted only once
     if ($path -and $script:iconByPath.ContainsKey($path)) { $img = $script:iconByPath[$path] }
     else { $img = if ($path) { [LauncherIcon]::Get($path, $iconPx) } else { $null }; if ($path) { $script:iconByPath[$path] = $img } }
     $script:icons[$a.Id] = $img

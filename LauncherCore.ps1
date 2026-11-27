@@ -66,15 +66,12 @@ public static class LauncherSearch {
         return 0;
     }
     // aliases[i] = aliases separated by '|'
-    // bonus[i] = ranking offset for the kind of result (apps 0, Control Panel tasks negative...)
+    // bonus[i] = ranking offset for the kind of result (apps 0, Control Panel and Settings negative)
     public static int[] Find(string[] keys, string[] aliases, int[] hits, int[] bonus, string text, int max) {
         string q = Key((text ?? "").Trim());
-        // Three tiers, each used only if the previous one is empty:
-        //   1. apps, shortcuts, Control Panel items, Settings pages starting like the text
-        //   2. Control Panel tasks starting like the text (they are long and numerous)
-        //   3. weak matches (text inside a word, letters in order) on apps and shortcuts
+        // Strong matches (apps, shortcuts, Control Panel items, Settings pages starting like the text);
+        // if there are none, weak matches (text inside a word, letters in order) on apps and shortcuts
         var res = new List<int[]>();
-        var tasks = new List<int[]>();
         var weak = new List<int[]>();
         for (int i = 0; i < keys.Length; i++) {
             int s = q.Length == 0 ? 1 : Score(keys[i], q);
@@ -87,15 +84,13 @@ public static class LauncherSearch {
             var r = new[] { i, Math.Max(1, s + bonus[i]) + Math.Min(300, 25 * hits[i]) };
             if (q.Length == 0) { res.Add(r); continue; }
             if (s < 200) { if (bonus[i] == 0) weak.Add(r); }
-            else if (bonus[i] <= -200) tasks.Add(r);
             else res.Add(r);
         }
+        if (res.Count == 0) res = weak;
         // best score first, then the shortest name (Excel before Exceed Share)
-        Comparison<int[]> order = (x, y) => y[1] != x[1] ? y[1].CompareTo(x[1])
+        res.Sort((x, y) => y[1] != x[1] ? y[1].CompareTo(x[1])
                          : keys[x[0]].Length != keys[y[0]].Length ? keys[x[0]].Length.CompareTo(keys[y[0]].Length)
-                         : string.CompareOrdinal(keys[x[0]], keys[y[0]]);
-        if (res.Count == 0) res = tasks.Count > 0 ? tasks : weak;
-        res.Sort(order);
+                         : string.CompareOrdinal(keys[x[0]], keys[y[0]]));
         var o = new int[Math.Min(max, res.Count)];
         for (int i = 0; i < o.Length; i++) o[i] = res[i][0];
         return o;
@@ -107,8 +102,8 @@ public static class LauncherSearch {
 function ConvertTo-Key([string]$s) { [LauncherSearch]::Key($s) }
 
 # Result kinds (shown as a small grey tag next to non-app results) and their ranking offset:
-# on equal match quality, apps come first and Control Panel tasks (long, numerous) last.
-$kindBonus = @{ 'App' = 0; 'Shortcut' = 0; 'Command' = 0; 'Control Panel' = -50; 'Settings' = -50; 'Control Panel task' = -250 }
+# on equal match quality, apps come first.
+$kindBonus = @{ 'App' = 0; 'Shortcut' = 0; 'Command' = 0; 'Control Panel' = -50; 'Settings' = -50 }
 $cplIcon      = '::{26EE0668-A00A-44D7-9371-BEB064C98683}'
 $settingsIcon = 'shell:AppsFolder\windows.immersivecontrolpanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel'
 
@@ -150,18 +145,16 @@ function Import-Apps {
         $taken[$k] = $true
         $list += New-Entry $p.Key "ms-settings:$($p.Value)" 'Settings' "ms-settings:$($p.Value)" $settingsIcon
     }
-    # Control Panel items (Indexing Options, Power Options...) and tasks ("Change how your mouse works"...), like Windows Search.
+    # Control Panel items (Indexing Options, Power Options...).
     # Opened through their shell item, which needs an STA thread (the bar's is).
     try {
-        $sh = New-Object -ComObject Shell.Application
-        foreach ($src in @(@("shell:$cplIcon\0", 'Control Panel'), @('shell:::{ED7BA470-8E54-465E-825C-99712043E01C}', 'Control Panel task'))) {
-            $ns = $sh.Namespace($src[0]); if (-not $ns) { continue }
+        $ns = (New-Object -ComObject Shell.Application).Namespace("shell:$cplIcon\0")
+        if ($ns) {
             foreach ($it in $ns.Items()) {
                 $k = ConvertTo-Key $it.Name
                 if (-not $it.Name -or $taken[$k]) { continue }   # skip duplicates of a Start menu app
                 $taken[$k] = $true
-                $icon = if ($src[1] -eq 'Control Panel') { $it.Path } else { $cplIcon }
-                $list += New-Entry $it.Name $it.Path $src[1] $null $icon $it
+                $list += New-Entry $it.Name $it.Path 'Control Panel' $null $it.Path $it
             }
         }
     } catch {}
@@ -211,7 +204,7 @@ function Invoke-Launch($app, [string]$text) {
         if ($text -eq ':alias') { Show-AliasManager; return $true }
         if ($app) {
             Write-Log "Launch: $($app.Name) [$($app.Kind) $($app.Id)]"
-            if ($app.Shell) { $app.Shell.InvokeVerb() }                                    # Control Panel item / task
+            if ($app.Shell) { $app.Shell.InvokeVerb() }                                    # Control Panel item
             elseif ($app.Kind -eq 'Settings') { [void][Diagnostics.Process]::Start($app.Target) }   # ms-settings: page
             elseif ($app.Target) { Start-Process $app.Target }
             else { Start-Process explorer.exe "shell:AppsFolder\$($app.Id)" }

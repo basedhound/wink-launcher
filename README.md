@@ -10,7 +10,7 @@ PowerShell 5.1 that ships with Windows.
 
 ## Features
 
-- **Instant search** across every Start-menu app (classic and Microsoft Store), Control Panel items and tasks (Indexing Options, "Change how your mouse works"...), common Settings pages (Display, Wi-Fi, Default apps...) and anything in the `shortcuts` folder, each non-app result tagged with its kind. It matches the start of the
+- **Instant search** across every Start-menu app (classic and Microsoft Store), Control Panel items (Power Options, Indexing Options...), common Settings pages (Display, Wi-Fi, Add or remove programs...) and anything in the `shortcuts` folder, each non-app result tagged with its kind. It matches the start of the
   name, any word, initials, or letters in order from the start of a word (`ntpd` > Notepad), and ignores accents. Ranking runs in C# (< 1 ms per keystroke).
 - **App icons** in the suggestions, and the selected app's icon in the box itself.
 - **Learns what you use**: frequently launched apps move to the top.
