@@ -5,8 +5,8 @@ Type a few letters, it suggests your apps with their icons, press **Enter** or c
 
 ![Launcher in the taskbar: typing "se" suggests Settings, Services, Security and Maintenance...; typing "steam " lists the installed Steam games](docs/screenshot.png)
 
-Written in plain PowerShell + WinForms (with a bit of inline C#): nothing to install, it runs on the
-PowerShell 5.1 that ships with Windows.
+Written in plain PowerShell + WinForms (with a bit of C#, compiled on the fly at startup): nothing to install,
+it runs on the PowerShell 5.1 that ships with Windows.
 
 ## Features
 
@@ -23,8 +23,9 @@ PowerShell 5.1 that ships with Windows.
   <p align="center"><img src="docs/aliases.png" width="560" alt="Alias manager: a dark window listing aliases with their app icons"></p>
 
 - **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder (right-click the bar > *Shortcuts*) and it shows up in the search under its file name.
-  Name it like an installed app and it **replaces** that app in the search: e.g. a `Google Calendar.lnk` running
-  `brave.exe --app=https://calendar.google.com/calendar/u/0/r/tasks` opens Calendar straight on Tasks.
+  Name it like an installed app and it **replaces** that app in the search: e.g. a `Google Calendar.lnk` that starts
+  your browser with `--app=https://calendar.google.com/calendar/u/0/r/tasks` opens Calendar straight on Tasks,
+  in its own window.
   Keep the icons your shortcuts use in `shortcuts\.icons` (ignored by the search).
 - **Empty Recycle Bin**: type `empty`, press Enter, confirm (it always asks first, even if Windows' own confirmation is turned off).
 - **Games, on demand**: installed Steam and GOG games stay out of the normal results (no Dark Souls every time you type `d`).
@@ -73,12 +74,14 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 | Open the real Start menu | **Ctrl+Esc** |
 | Windows shortcuts (**Win+E**, **Win+D**, **Win+L**...) | still work as usual: the bar only opens when **Windows** is tapped alone |
 | Move through suggestions | **Up / Down** |
+| Scroll a long list (games) | mouse wheel, **Up / Down**, or drag the thin scrollbar |
 | Launch | **Enter** or click a suggestion |
 | Clear | **Ctrl+Space** (stay in the bar) or **Esc** (clear and go back to the previous window); Ctrl+Backspace deletes the last word |
 | Search your games | `steam ` or `gog ` then the name (`steam dark souls`) |
 | Empty the Recycle Bin | `empty`, then Enter (asks first) |
 | Manage aliases | `:alias`, or right-click the bar > *Aliases* |
 | Create an alias | `alias=app name`, then Enter, or right-click a suggestion > *Give this app an alias* |
+| Edit / delete an alias | in the alias manager: double-click (or **F2**) to edit, the cross (or **Delete**) to delete |
 | Open the shortcuts folder | right-click the bar > *Shortcuts* |
 | Move the bar left / right | right-click the bar > *Move to left* / *Move to right* |
 | Quit the bar | right-click the bar > *Quit* |
@@ -86,14 +89,16 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 
 ## Settings
 
-At the top of `LauncherBar.ps1`:
+At the top of `LauncherBar.ps1` (sizes in "logical" pixels, at 100 % scaling):
 
 ```powershell
-$Width       = 110     # width of the search bar (logical pixels)
+$Width       = 110     # width of the search bar
 $RightMargin = 290     # only used if the clock / tray area can't be found
-$WindowsKey  = $true   # tap the Windows key alone to open the bar instead of the Start menu
+$WindowsKey  = $true   # tap the Windows key alone to open the bar (instead of the Start menu)
 $HideStartButton = $true   # hide the taskbar's Start button (Ctrl+Esc still opens the Start menu)
 ```
+
+Changes apply the next time the bar starts (right-click the bar > *Quit*, then double-click `Start Bar.bat`).
 
 The left / right position is chosen from the right-click menu and saved in `%APPDATA%\Launcher\settings.json`.
 On the left, the Start button is always hidden (the bar takes its place). It comes back when the bar is closed.
@@ -116,9 +121,11 @@ On the left, the Start button is always hidden (the bar takes its place). It com
 | `Start Bar.bat` | reopens the bar (double-click), even after *Quit*, and repairs the task if the folder was moved |
 | `shortcuts/` | your own shortcuts and files, searchable by file name, and `shortcuts/.icons` for their icons (the folders ship empty: their content stays personal) |
 | `alias.txt` | your aliases, created on first run (not versioned) |
+| `docs/` | the screenshots of this page |
 
-Usage history (`history.json`) and the log (`bar.log`) live in `%APPDATA%\Launcher`.
-The log records starts, stops, every launch and any launch error, which is the first place to look if something doesn't open.
+Usage history (`history.json`), the bar's position (`settings.json`) and the log (`bar.log`) live in `%APPDATA%\Launcher`.
+The log records starts and stops, every launch (and launch error), list reloads and errors:
+the first place to look if something doesn't open.
 
 ## Troubleshooting
 
