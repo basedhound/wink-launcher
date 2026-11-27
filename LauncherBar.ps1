@@ -347,6 +347,16 @@ function Get-AppIcon($a) {
     } else { $path = "shell:AppsFolder\$($a.Id)" }
     # Same icon file for many entries (Settings pages): extracted only once
     if ($path -and $script:iconByPath.ContainsKey($path)) { $img = $script:iconByPath[$path] }
+    elseif ($path -match '\.(jpg|png)$') {
+        # Picture used as an icon (Steam games): the shell would only give the generic picture-file icon
+        $img = $null
+        try {
+            $src = New-Object Drawing.Bitmap (New-Object IO.MemoryStream (, [IO.File]::ReadAllBytes($path)))
+            $img = New-Object Drawing.Bitmap $iconPx, $iconPx
+            $g = [Drawing.Graphics]::FromImage($img); $g.InterpolationMode = 'HighQualityBicubic'; $g.DrawImage($src, 0, 0, $iconPx, $iconPx); $g.Dispose(); $src.Dispose()
+        } catch {}
+        $script:iconByPath[$path] = $img
+    }
     else { $img = if ($path) { [LauncherIcon]::Get($path, $iconPx) } else { $null }; if ($path) { $script:iconByPath[$path] = $img } }
     $script:icons[$a.Id] = $img
     $img
