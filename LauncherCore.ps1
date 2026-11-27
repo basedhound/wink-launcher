@@ -184,10 +184,19 @@ function Get-Games {
 }
 
 function Import-Apps {
-    $list = @(Get-StartApps | Where-Object { $_.Name -and $_.AppID } | Sort-Object Name -Unique | ForEach-Object { New-Entry $_.Name $_.AppID 'App' })
+    # Personal shortcuts: name = file name without extension ("C411.lnk" -> "C411").
+    # A shortcut named like a Start menu app replaces it (e.g. "Google Calendar" opening another page)
+    $mine = @(foreach ($f in Get-ShortcutFiles) { New-Entry $f.BaseName $f.FullName 'Shortcut' $f.FullName })
+    $own = @{}; foreach ($m in $mine) { $own[$m.Key] = $m }
+    $list = @(Get-StartApps | Where-Object { $_.Name -and $_.AppID } | Sort-Object Name -Unique | ForEach-Object {
+        $e = New-Entry $_.Name $_.AppID 'App'
+        $m = $own[$e.Key]
+        if (-not $m) { $e; return }
+        $m.Kind = 'App'   # shown like the app it replaces, keeping its launch count
+        if (-not $script:hist[$m.Id] -and $script:hist[$e.Id]) { $script:hist[$m.Id] = $script:hist[$e.Id] }
+    })
+    $list += $mine
     $taken = @{}; foreach ($a in $list) { $taken[$a.Key] = $true }
-    # Personal shortcuts: name = file name without extension ("C411.lnk" -> "C411")
-    foreach ($f in Get-ShortcutFiles) { $list += New-Entry $f.BaseName $f.FullName 'Shortcut' $f.FullName }
     $list += New-Entry 'Empty Recycle Bin' 'action:empty-recycle-bin' 'Action' $null $recycleBin
     # Settings pages before Control Panel: "Add or remove programs" opens the modern page, as in Windows Search
     foreach ($p in $settingsPages.GetEnumerator()) {

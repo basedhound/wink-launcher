@@ -17,6 +17,8 @@ PowerShell 5.1 that ships with Windows.
 - **Aliases**: type `ch=chrome` then Enter, and `ch` now launches Google Chrome.
   Right-click a suggestion > *Give this app an alias*, or type `:alias` to open the alias manager (dark window: add, edit with a double-click, delete with the cross; changes are saved instantly).
 - **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder (right-click the bar > *Shortcuts*) and it shows up in the search under its file name.
+  Name it like an installed app and it **replaces** that app in the search: e.g. a `Google Calendar.lnk` running
+  `brave.exe --app=https://calendar.google.com/calendar/u/0/r/tasks` opens Calendar straight on Tasks.
 - **Empty Recycle Bin**: type `empty`, press Enter, confirm (it always asks first, even if Windows' own confirmation is turned off).
 - **Games, on demand**: installed Steam and GOG games stay out of the normal results (no Elden Ring every time you type `e`).
   Type `steam ` first: `steam e` suggests Elden Ring, `steam ds` Dark Souls, and `steam ` alone lists every installed game.
