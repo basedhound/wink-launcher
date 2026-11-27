@@ -28,6 +28,12 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 // Suggestions window that shows up WITHOUT taking the keyboard (otherwise you can't keep typing)
+// Owner for the alias window: the desktop, not the bar (a window owned by an always-on-top window
+// is always on top too, and other windows couldn't go over it)
+public class DesktopOwner : IWin32Window {
+    [DllImport("user32.dll")] static extern IntPtr GetDesktopWindow();
+    public IntPtr Handle { get { return GetDesktopWindow(); } }
+}
 public class LauncherPopup : Form {
     protected override bool ShowWithoutActivation { get { return true; } }
     protected override CreateParams CreateParams {

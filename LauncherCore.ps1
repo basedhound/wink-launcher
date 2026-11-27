@@ -376,7 +376,7 @@ function Show-AliasManager([string]$preset) {
     }
 
     $f = New-Object Windows.Forms.Form
-    $f.Text = 'Aliases'; $f.ShowIcon = $false; $f.TopMost = $true; $f.KeyPreview = $true
+    $f.Text = 'Aliases'; $f.ShowIcon = $false; $f.KeyPreview = $true   # a normal window: other windows can go over it
     $f.StartPosition = 'CenterScreen'; $f.AutoScaleMode = 'None'
     $f.Size = New-Object Drawing.Size((px 640), (px 540)); $f.MinimumSize = New-Object Drawing.Size((px 460), (px 360))
     $f.BackColor = $cBg; $f.ForeColor = $cText; $f.Font = $font
@@ -539,7 +539,7 @@ function Show-AliasManager([string]$preset) {
         [LauncherNative]::Placeholder($aliasBox.Handle, 'Alias'); [LauncherNative]::Placeholder($targetBox.Handle, 'App, folder, URL or command')
         foreach ($c in $grid.Controls) { [LauncherNative]::DarkScroll($c.Handle) }
         if ($preset) { $targetBox.Text = $preset }
-        $aliasBox.Focus()
+        $f.Activate(); $aliasBox.Focus()   # opens in front, without being stuck there
         # ShowDialog disabled the bar: enable it again so a new alias can be tried in the bar right away
         foreach ($w in @($bar, $pop)) { if ($w) { [LauncherNative]::Enable($w.Handle) } }
     })
@@ -547,7 +547,7 @@ function Show-AliasManager([string]$preset) {
     Import-AliasGrid
     [void]$f.Handle; [LauncherNative]::DarkTitle($f.Handle)
     $script:aliasWin = $f; $script:aliasTarget = $targetBox; $script:aliasKey = $aliasBox
-    try { [void]$f.ShowDialog() } finally { $script:aliasWin = $null }
+    try { [void]$f.ShowDialog((New-Object DesktopOwner)) } finally { $script:aliasWin = $null }
 }
 
 Import-Apps
