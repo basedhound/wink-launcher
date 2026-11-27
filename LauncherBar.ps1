@@ -684,6 +684,7 @@ $hk.add_HotKey({ $f = [LauncherNative]::OtherForeground(); if ($f -ne [IntPtr]::
 # Right-click menu: aliases, refresh, move to the other side, quit
 $menu = New-Object Windows.Forms.ContextMenuStrip
 [void]$menu.Items.Add('Aliases', $null, { Reset-Bar; Show-AliasManager })
+[void]$menu.Items.Add('Shortcuts folder', $null, { Reset-Bar; Start-Process explorer.exe "`"$shortcutDir`"" })   # new files show up in the search by themselves
 [void]$menu.Items.Add('Refresh', $null, { Import-Apps; $script:icons = @{}; $script:iconByPath = @{}; Start-IconPreload })
 # One item that names the other side (top / bottom follows the taskbar)
 $miMove = $menu.Items.Add('Move to left', $null, { Set-Side $(if ($script:side -eq 'Left') { 'Right' } else { 'Left' }) })

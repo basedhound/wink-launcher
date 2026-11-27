@@ -16,7 +16,7 @@ PowerShell 5.1 that ships with Windows.
 - **Learns what you use**: frequently launched apps move to the top.
 - **Aliases**: type `ch=chrome` then Enter, and `ch` now launches Google Chrome.
   Right-click a suggestion > *Give this app an alias*, or type `:alias` to open the alias manager (dark window: add, edit with a double-click, delete with the cross; changes are saved instantly).
-- **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder and it shows up in the search under its file name.
+- **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder (right-click the bar > *Shortcuts folder*) and it shows up in the search under its file name.
 - Paths, URLs and commands work too.
 - **Windows key**: tap it alone to open the bar instead of the Start menu (Win+E and other shortcuts still work, Ctrl+Esc opens Start).
 - Works with the taskbar at the top or bottom of the screen, on the **right** (next to the clock) or the **left**
@@ -60,6 +60,7 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 | Clear | **Ctrl+Space** (stay in the bar) or **Esc** (clear and go back to the previous window); Ctrl+Backspace deletes the last word |
 | Create an alias | `alias=app name`, then Enter |
 | Manage aliases | `:alias`, or right-click the bar > *Aliases* |
+| Open the shortcuts folder | right-click the bar > *Shortcuts folder* |
 | Move the bar left / right | right-click the bar > *Move to left* / *Move to right* |
 | Refresh the app list / quit | right-click the bar > *Refresh* / *Quit* |
 | Reopen the bar | double-click `Start Bar.bat` |
