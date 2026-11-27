@@ -308,6 +308,11 @@ function Add-Alias([string]$alias, [string]$target) {
 # Changes are saved as soon as they're made: add a row at the top, edit a cell (double-click), or click the cross.
 # $preset: name of an app to pre-fill as the target (right-click a suggestion > Give this app an alias)
 function Show-AliasManager([string]$preset) {
+    # Already open (":alias" typed again, or "Give this app an alias"): bring it forward instead of opening another
+    if ($script:aliasWin -and $script:aliasWin.Visible) {
+        if ($preset) { $script:aliasTarget.Text = $preset; $script:aliasKey.Focus() }
+        $script:aliasWin.Activate(); return
+    }
     $s = if ($scale) { $scale } else { 1 }
     function px([double]$v) { [int]($v * $s) }
     $cBg = [Drawing.Color]::FromArgb(32, 32, 32); $cIn = [Drawing.Color]::FromArgb(45, 45, 45); $cInHover = [Drawing.Color]::FromArgb(58, 58, 58)
@@ -510,11 +515,14 @@ function Show-AliasManager([string]$preset) {
         foreach ($c in $grid.Controls) { [LauncherNative]::DarkScroll($c.Handle) }
         if ($preset) { $targetBox.Text = $preset }
         $aliasBox.Focus()
+        # ShowDialog disabled the bar: enable it again so a new alias can be tried in the bar right away
+        foreach ($w in @($bar, $pop)) { if ($w) { [LauncherNative]::Enable($w.Handle) } }
     })
 
     Import-AliasGrid
     [void]$f.Handle; [LauncherNative]::DarkTitle($f.Handle)
-    [void]$f.ShowDialog()
+    $script:aliasWin = $f; $script:aliasTarget = $targetBox; $script:aliasKey = $aliasBox
+    try { [void]$f.ShowDialog() } finally { $script:aliasWin = $null }
 }
 
 Import-Apps

@@ -204,6 +204,8 @@ public class LauncherNative : NativeWindow {
     // Dark title bar (Windows 10 20H1+ / 11; attribute 19 on older 10 builds) and dark scrollbars
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h, int attr, ref int v, int size);
     [DllImport("uxtheme.dll", CharSet = CharSet.Unicode)] static extern int SetWindowTheme(IntPtr h, string app, string id);
+    [DllImport("user32.dll")] static extern bool EnableWindow(IntPtr h, bool on);
+    public static void Enable(IntPtr h) { EnableWindow(h, true); }
     public static void DarkTitle(IntPtr h) { int on = 1; if (DwmSetWindowAttribute(h, 20, ref on, 4) != 0) DwmSetWindowAttribute(h, 19, ref on, 4); }
     public static void DarkScroll(IntPtr h) { SetWindowTheme(h, "DarkMode_Explorer", null); }
     // Shows / hides the taskbar's Start button (the Start menu itself still opens with Ctrl+Esc).
