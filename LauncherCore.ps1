@@ -69,10 +69,10 @@ public static class LauncherSearch {
     // bonus[i] = ranking offset for the kind of result (apps 0, Control Panel tasks negative...)
     public static int[] Find(string[] keys, string[] aliases, int[] hits, int[] bonus, string text, int max) {
         string q = Key((text ?? "").Trim());
-        // Three tiers:
+        // Three tiers, each used only if the previous one is empty:
         //   1. apps, shortcuts, Control Panel items, Settings pages starting like the text
-        //   2. then Control Panel tasks starting like the text (long and numerous, so always listed after tier 1)
-        //   3. only if both are empty: weak matches (text inside a word, letters in order) on apps and shortcuts
+        //   2. Control Panel tasks starting like the text (they are long and numerous)
+        //   3. weak matches (text inside a word, letters in order) on apps and shortcuts
         var res = new List<int[]>();
         var tasks = new List<int[]>();
         var weak = new List<int[]>();
@@ -94,10 +94,8 @@ public static class LauncherSearch {
         Comparison<int[]> order = (x, y) => y[1] != x[1] ? y[1].CompareTo(x[1])
                          : keys[x[0]].Length != keys[y[0]].Length ? keys[x[0]].Length.CompareTo(keys[y[0]].Length)
                          : string.CompareOrdinal(keys[x[0]], keys[y[0]]);
-        res.Sort(order); tasks.Sort(order);
-        // Control Panel tasks fill the slots left after the main results ("remove" -> Remove a device, then the tasks)
-        res.AddRange(tasks);
-        if (res.Count == 0) { weak.Sort(order); res = weak; }
+        if (res.Count == 0) res = tasks.Count > 0 ? tasks : weak;
+        res.Sort(order);
         var o = new int[Math.Min(max, res.Count)];
         for (int i = 0; i < o.Length; i++) o[i] = res[i][0];
         return o;
