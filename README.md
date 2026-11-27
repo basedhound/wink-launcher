@@ -20,7 +20,7 @@ PowerShell 5.1 that ships with Windows.
   double-click, delete with the cross. Changes are saved instantly, and the bar stays usable while the window is open,
   so a new alias can be tried right away.
 
-  ![Alias manager: a dark window listing aliases with their app icons](docs/aliases.png)
+  <img src="docs/aliases.png" width="450" alt="Alias manager: a dark window listing aliases with their app icons">
 
 - **Your own shortcuts**: drop any `.lnk`, `.url`, `.exe` or document into the `shortcuts` folder (right-click the bar > *Shortcuts*) and it shows up in the search under its file name.
   Name it like an installed app and it **replaces** that app in the search: e.g. a `Google Calendar.lnk` running
