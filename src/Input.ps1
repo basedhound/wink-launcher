@@ -65,15 +65,17 @@ $box.Add_KeyDown({
     param($s, $e)
     $ctrl = $e.Control -and -not $e.Alt
     $key = [int]$e.KeyCode
-    $handled = $true
-    if ($ctrl -and $key -eq 32) { Reset-Bar }                 # Ctrl+Space: clear, stay in the bar
-    elseif ($ctrl -and $key -eq 8) { Remove-PreviousWord }    # Ctrl+Backspace
-    elseif ($key -eq 40) { Move-Selection 1 }                 # Down
-    elseif ($key -eq 38) { Move-Selection -1 }                # Up
-    elseif ($key -eq 13) { Start-Choice }                     # Enter
-    elseif ($key -eq 27) { Exit-Bar }                         # Esc
-    else { $handled = $false }
-    if ($handled) { $e.SuppressKeyPress = $true }
+    $action = if ($ctrl -and $key -eq 32) { { Reset-Bar } }   # Ctrl+Space: clear, stay in the bar
+        elseif ($ctrl -and $key -eq 8) { { Remove-PreviousWord } }   # Ctrl+Backspace
+        elseif ($key -eq 40) { { Move-Selection 1 } }              # Down
+        elseif ($key -eq 38) { { Move-Selection -1 } }             # Up
+        elseif ($key -eq 13) { { Start-Choice } }                  # Enter
+        elseif ($key -eq 27) { { Exit-Bar } }                      # Esc
+    if (-not $action) { return }
+    # The key is marked as handled BEFORE acting: an action that shows a window (alias manager, a question)
+    # processes messages, and the key must not reach the box a second time meanwhile
+    $e.SuppressKeyPress = $true
+    & $action
 })
 
 $box.Add_GotFocus({

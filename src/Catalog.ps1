@@ -46,8 +46,9 @@ $settingsPages = [ordered]@{
     'Check for updates' = 'windowsupdate'; 'Reset this PC' = 'recovery'; 'Optional features' = 'optionalfeatures'
 }
 
+# Idx: the entry's position in the search index (set by Set-SearchIndex)
 function New-Entry($name, $id, $kind, $target = $null, $iconPath = $null, $shell = $null) {
-    [pscustomobject]@{ Name = $name; Id = $id; Kind = $kind; Target = $target; IconPath = $iconPath; Shell = $shell; Key = (ConvertTo-Key $name); Aliases = @() }
+    [pscustomobject]@{ Name = $name; Id = $id; Kind = $kind; Target = $target; IconPath = $iconPath; Shell = $shell; Key = (ConvertTo-Key $name); Aliases = @(); Idx = 0 }
 }
 
 # Files in the shortcuts folder (subfolders included), except dot-files and dot-folders
@@ -84,13 +85,19 @@ function Get-StartMenuEntries($shortcuts) {
     })
 }
 
-# Settings pages not already named by an app ($taken: keys in use, updated)
+# Settings pages not already named by an app ($taken: keys in use, updated).
+# Built once: the list never changes, only which pages an app's name hides.
+$script:settingsEntries = $null
 function Get-SettingsEntries([hashtable]$taken) {
-    foreach ($p in $settingsPages.GetEnumerator()) {
-        $k = ConvertTo-Key $p.Key
-        if ($taken[$k]) { continue }
-        $taken[$k] = $true
-        New-Entry $p.Key "ms-settings:$($p.Value)" 'Settings' "ms-settings:$($p.Value)" $settingsIcon
+    if (-not $script:settingsEntries) {
+        $script:settingsEntries = @(foreach ($p in $settingsPages.GetEnumerator()) {
+            New-Entry $p.Key "ms-settings:$($p.Value)" 'Settings' "ms-settings:$($p.Value)" $settingsIcon
+        })
+    }
+    foreach ($e in $script:settingsEntries) {
+        if ($taken[$e.Key]) { continue }
+        $taken[$e.Key] = $true
+        $e
     }
 }
 
@@ -153,19 +160,19 @@ function Read-Aliases {
 
 # The entry an alias target names: its exact name, else the shortest name starting like it ("mus" -> Music),
 # else none (the target is then a path, URL or command of its own)
-function Find-AliasTarget($list, [string]$target) {
-    $app = $list | Where-Object { $_.Name -eq $target } | Select-Object -First 1
+function Find-AliasTarget($entries, [string]$target) {
+    $app = $entries | Where-Object { $_.Name -eq $target } | Select-Object -First 1
     if ($app -or $target -match '[\\/:.]') { return $app }
     $tk = ConvertTo-Key $target
-    $list | Where-Object { $_.Kind -ne 'Command' -and $_.Key.StartsWith($tk, [StringComparison]::Ordinal) } |
+    $entries | Where-Object { $_.Kind -ne 'Command' -and $_.Key.StartsWith($tk, [StringComparison]::Ordinal) } |
         Sort-Object { $_.Name.Length } | Select-Object -First 1
 }
 
 # Attaches each alias to its entry; targets that match nothing become Command entries (added to the list)
-function Add-AliasesTo([Collections.ArrayList]$list) {
+function Add-AliasesTo([Collections.ArrayList]$entries) {
     foreach ($a in Read-Aliases) {
-        $app = Find-AliasTarget $list $a.Target
-        if (-not $app) { $app = New-Entry $a.Target $a.Target 'Command' $a.Target; [void]$list.Add($app) }
+        $app = Find-AliasTarget $entries $a.Target
+        if (-not $app) { $app = New-Entry $a.Target $a.Target 'Command' $a.Target; [void]$entries.Add($app) }
         $app.Aliases += ConvertTo-Key $a.Alias
     }
 }
@@ -180,7 +187,17 @@ function Add-Alias([string]$alias, [string]$target) {
         $line
     }
     @($keep) + "$alias = $target" | Set-Content -Encoding UTF8 $aliasFile
-    Import-Apps
+    Update-Aliases
+}
+
+# Re-reads alias.txt only (the rest of the list is kept): instant, where a full reload takes about half a second
+function Update-Aliases {
+    foreach ($a in $script:baseApps) { $a.Aliases = @() }
+    $entries = New-Object Collections.ArrayList
+    $entries.AddRange(@($script:baseApps))
+    Add-AliasesTo $entries
+    Set-SearchIndex @($entries)
+    $script:aliasStamp = (Get-Item $aliasFile).LastWriteTime
 }
 
 # ---- Usage history ----
@@ -197,42 +214,49 @@ function Add-LaunchCount($app) {
 }
 
 # ---- The list ----
+# Named $entries here, never $list: a reload can be interrupted by the bar's own events (Windows calls made
+# while loading let messages through), and PowerShell would then see this list in place of the bar's $list.
 
 # Builds the full list and the arrays the search engine works on
 function Import-Apps {
     $shortcuts = @(Get-ShortcutEntries)   # @(): a single shortcut would otherwise come back alone, not as a list
-    $list = New-Object Collections.ArrayList
-    $list.AddRange(@(Get-StartMenuEntries $shortcuts))
-    $list.AddRange($shortcuts)
+    $entries = New-Object Collections.ArrayList
+    $entries.AddRange(@(Get-StartMenuEntries $shortcuts))
+    $entries.AddRange($shortcuts)
     $taken = @{}
-    foreach ($a in $list) { $taken[$a.Key] = $true }
-    $list.AddRange(@(Get-ActionEntries))
+    foreach ($a in $entries) { $taken[$a.Key] = $true }
+    $entries.AddRange(@(Get-ActionEntries))
     # Settings pages before Control Panel: "Add or remove programs" opens the modern page, as in Windows Search
-    $list.AddRange(@(Get-SettingsEntries $taken))
-    $list.AddRange(@(Get-ControlPanelEntries $taken))
-    try {
-        $list.AddRange(@(Get-GameEntries))
-        $script:steamStamp = Get-SteamStamp; $script:gogStamp = Get-GogStamp
-    } catch { Write-Log "Games not loaded: $($_.Exception.Message)" }
-    Add-AliasesTo $list
-    Set-SearchIndex @($list)
-    $script:aliasStamp = (Get-Item $aliasFile).LastWriteTime
+    $entries.AddRange(@(Get-SettingsEntries $taken))
+    $entries.AddRange(@(Get-ControlPanelEntries $taken))
+    try { $entries.AddRange(@(Get-GameEntries)) } catch { Write-Log "Games not loaded: $($_.Exception.Message)" }
+    $script:baseApps = $entries.ToArray()   # everything but the aliases: kept for Update-Aliases
+    Update-Aliases
     $script:shortcutStamp = Get-ShortcutStamp
 }
 
-function Set-SearchIndex($list) {
-    $script:apps = $list
-    $script:keys = [string[]]@($list | ForEach-Object { $_.Key })
-    $script:aliasArr = [string[]]@($list | ForEach-Object { $_.Aliases -join '|' })
-    $script:hits = [int[]]@($list | ForEach-Object { [int]$script:hist[$_.Id] })
-    $script:bonus = [int[]]@($list | ForEach-Object { [int]$kindBonus[$_.Kind] })
-    $script:groups = [string[]]@($list | ForEach-Object { [string]$gameGroups[$_.Kind] })
-    for ($i = 0; $i -lt $list.Count; $i++) { $list[$i] | Add-Member -NotePropertyName Idx -NotePropertyValue $i -Force }
+# The arrays the search engine works on, one slot per entry (plain loops: pipelines here cost ~100 ms)
+function Set-SearchIndex($entries) {
+    $n = $entries.Count
+    $keys = New-Object string[] $n; $aliases = New-Object string[] $n; $groups = New-Object string[] $n
+    $hits = New-Object int[] $n; $bonus = New-Object int[] $n
+    for ($i = 0; $i -lt $n; $i++) {
+        $a = $entries[$i]
+        $a.Idx = $i
+        $keys[$i] = $a.Key
+        $aliases[$i] = $a.Aliases -join '|'
+        $hits[$i] = [int]$script:hist[$a.Id]
+        $bonus[$i] = [int]$kindBonus[$a.Kind]
+        $groups[$i] = [string]$gameGroups[$a.Kind]
+    }
+    $script:apps = $entries; $script:keys = $keys; $script:aliasArr = $aliases
+    $script:hits = $hits; $script:bonus = $bonus; $script:groups = $groups
 }
 
-# Reloads only if alias.txt or the shortcuts folder changed (the full list is refreshed in the background by the bar)
+# On focus: catches alias.txt edited by hand (aliases re-read) or a changed shortcuts folder (full reload)
 function Update-AppsIfStale {
-    if ((Get-Item $aliasFile).LastWriteTime -ne $script:aliasStamp -or (Get-ShortcutStamp) -ne $script:shortcutStamp) { Import-Apps }
+    if ((Get-ShortcutStamp) -ne $script:shortcutStamp) { Import-Apps }
+    elseif ((Get-Item $aliasFile).LastWriteTime -ne $script:aliasStamp) { Update-Aliases }
 }
 
 # Callers must wrap the result in @(...): with a single match PowerShell 5.1 returns the object alone, with no .Count

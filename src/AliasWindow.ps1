@@ -170,7 +170,7 @@ function Save-AliasGrid {
         if ($a -and $c) { $out += "$a = $c" }
     }
     $out | Set-Content -Encoding UTF8 $aliasFile
-    Import-Apps
+    Update-Aliases
     foreach ($r in $grid.Rows) { $r.Cells[0].Value = Get-AliasIcon "$($r.Cells[1].Value)" }
     $empty.Visible = $grid.Rows.Count -eq 0
     $script:aliasMgrStamp = (Get-Item $aliasFile).LastWriteTime
@@ -243,7 +243,7 @@ function Register-AliasEvents {
         Undo-AliasField
     })
     # alias.txt edited by hand meanwhile: reload
-    $f.Add_Activated({ if ((Get-Item $aliasFile).LastWriteTime -ne $script:aliasMgrStamp) { Import-Apps; Import-AliasGrid } })
+    $f.Add_Activated({ if ((Get-Item $aliasFile).LastWriteTime -ne $script:aliasMgrStamp) { Update-Aliases; Import-AliasGrid } })
     $f.Add_Shown({
         [LauncherNative]::Placeholder($aliasBox.Handle, 'Alias'); [LauncherNative]::Placeholder($targetBox.Handle, 'App, folder, URL or command')
         foreach ($c in $grid.Controls) { [LauncherNative]::DarkScroll($c.Handle) }

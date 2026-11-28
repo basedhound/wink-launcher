@@ -26,7 +26,7 @@ function Get-SteamLibraries {
 
 # One appmanifest file -> @{ Id; Name } if it's a fully installed game (not one of Steam's own runtimes)
 function Read-SteamManifest([string]$path) {
-    $t = Get-Content -LiteralPath $path -Raw -Encoding UTF8
+    $t = [IO.File]::ReadAllText($path, [Text.Encoding]::UTF8)
     $id = [regex]::Match($t, '"appid"\s+"(\d+)"').Groups[1].Value
     $name = [regex]::Match($t, '"name"\s+"([^"]+)"').Groups[1].Value
     $flags = [int][regex]::Match($t, '"StateFlags"\s+"(\d+)"').Groups[1].Value
@@ -38,8 +38,8 @@ function Read-SteamManifest([string]$path) {
 function Get-SteamInstalled {
     $res = [ordered]@{}
     foreach ($dir in Get-SteamLibraries) {
-        foreach ($f in Get-ChildItem -LiteralPath $dir -Filter 'appmanifest_*.acf' -ErrorAction SilentlyContinue) {
-            $game = Read-SteamManifest $f.FullName
+        foreach ($f in [IO.Directory]::GetFiles($dir, 'appmanifest_*.acf')) {
+            $game = Read-SteamManifest $f
             if ($game -and -not $res.Contains($game.Id)) { $res[$game.Id] = $game.Name }
         }
     }
@@ -48,9 +48,11 @@ function Get-SteamInstalled {
 
 # Steam keeps each game's small icon as a 32x32 jpg named by its hash (fallback: Steam's own icon)
 function Get-SteamIcon([string]$steam, [string]$id) {
-    $icon = Get-ChildItem -LiteralPath (Join-Path $steam "appcache\librarycache\$id") -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -match '^[0-9a-f]{40}\.jpg$' } | Select-Object -First 1
-    if ($icon) { $icon.FullName } else { Join-Path $steam 'steam.exe' }
+    $dir = Join-Path $steam "appcache\librarycache\$id"
+    if ([IO.Directory]::Exists($dir)) {
+        foreach ($f in [IO.Directory]::GetFiles($dir, '*.jpg')) { if ([IO.Path]::GetFileName($f) -match '^[0-9a-f]{40}\.jpg$') { return $f } }
+    }
+    Join-Path $steam 'steam.exe'
 }
 
 # Changes when a Steam game is installed or uninstalled (cheap: used to decide whether to reload)
@@ -82,11 +84,15 @@ function Get-GogStamp { (@(Get-GogInstalled) | ForEach-Object { $_.gameID }) -jo
 
 # ---- Entries for the search ----
 
+# Also records what's installed ($script:steamStamp, $script:gogStamp), to tell later whether it changed
 function Get-GameEntries {
     $steam = Get-SteamPath
     $installed = Get-SteamInstalled
+    $script:steamStamp = $installed.Keys -join ','
     foreach ($id in $installed.Keys) {
         New-Entry $installed[$id] "steam:$id" 'Steam' "steam://rungameid/$id" (Get-SteamIcon $steam $id)
     }
-    Get-GogInstalled | ForEach-Object { New-Entry $_.gameName "gog:$($_.gameID)" 'GOG' $_.exe }
+    $gog = @(Get-GogInstalled)
+    $script:gogStamp = ($gog | ForEach-Object { $_.gameID }) -join ','
+    $gog | ForEach-Object { New-Entry $_.gameName "gog:$($_.gameID)" 'GOG' $_.exe }
 }
