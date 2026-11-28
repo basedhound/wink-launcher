@@ -30,8 +30,9 @@ it runs on the PowerShell 5.1 that ships with Windows.
   in its own window.
   Keep the icons your shortcuts use in `shortcuts\.icons` (ignored by the search).
 - **Built-in actions**: *Shut down* (or *Turn off*), *Restart* (or *Reboot*), *Sign out* (or *Log off*), *Sleep*, *Lock*
-  and *Empty Recycle Bin*. The ones that close your apps or delete files ask first, with **Yes** as the default:
-  `shut`, Enter, Enter. The Recycle Bin always asks, even if Windows' own confirmation is turned off.
+  and *Empty Recycle Bin*. Shut down, Restart, Sign out and Sleep ask first, with **No** as the default, so Enter
+  alone never turns the PC off (Tab or click *Yes* to confirm). The Recycle Bin asks with **Yes** as the default
+  (`empty`, Enter, Enter), even if Windows' own confirmation is turned off.
 - **Games, on demand**: installed Steam and GOG games stay out of the normal results (no Dark Souls every time you type `d`).
   Type `steam ` first: `steam dark` (or just `steam ds`) suggests Dark Souls, and `steam ` alone lists every installed game.
   Same with `gog `. Give a game an alias to launch it directly.
@@ -82,8 +83,8 @@ If you quit the bar from its menu, it stays closed until the next reboot, or unt
 | Launch | **Enter** or click a suggestion |
 | Clear | **Ctrl+Space** (stay in the bar) or **Esc** (clear and go back to the previous window); Ctrl+Backspace deletes the last word |
 | Search your games | `steam ` or `gog ` then the name (`steam dark souls`) |
-| Shut down / restart / sign out | `shut`, `restart` or `sign`, then Enter twice (asks first) |
-| Sleep / lock the PC | `sleep` or `lock`, then Enter |
+| Shut down / restart / sign out / sleep | `shut`, `restart`, `sign` or `sleep`, Enter, then *Yes* (No is the default) |
+| Lock the PC | `lock`, then Enter |
 | Empty the Recycle Bin | `empty`, then Enter twice (asks first) |
 | Manage aliases | `:alias`, or right-click the bar > *Aliases* |
 | Create an alias | `alias=app name`, then Enter, or right-click a suggestion > *Give this app an alias* |

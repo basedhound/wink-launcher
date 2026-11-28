@@ -117,18 +117,19 @@ function Get-ControlPanelEntries([hashtable]$taken) {
 }
 
 # Built-in actions: Id -> names it's found by, icon ("file.dll,index" or a shell item), what it does.
-# The ones that close your apps ask first (Yes is the default: Enter confirms).
+# Power actions ask first with No as the default (Enter alone never turns the PC off);
+# the Recycle Bin asks with Yes as the default (empty, Enter, Enter).
 $sys = Join-Path $env:WINDIR 'System32'
 $actions = [ordered]@{
     'action:empty-recycle-bin' = @{ Names = @('Empty Recycle Bin'); Icon = $recycleBin; Run = { Invoke-EmptyRecycleBin } }
     'action:shutdown' = @{ Names = @('Shut down', 'Turn off'); Icon = "$sys\shell32.dll,27"
-        Run = { if (Confirm-Action 'Shut down' 'Shut down the PC now?') { shutdown.exe /s /t 0 } } }
+        Run = { if (Confirm-Action 'Shut down' 'Shut down the PC now?' -DefaultNo) { shutdown.exe /s /t 0 } } }
     'action:restart'  = @{ Names = @('Restart', 'Reboot'); Icon = "$sys\imageres.dll,228"
-        Run = { if (Confirm-Action 'Restart' 'Restart the PC now?') { shutdown.exe /r /t 0 } } }
+        Run = { if (Confirm-Action 'Restart' 'Restart the PC now?' -DefaultNo) { shutdown.exe /r /t 0 } } }
     'action:signout'  = @{ Names = @('Sign out', 'Log off'); Icon = "$sys\shell32.dll,176"
-        Run = { if (Confirm-Action 'Sign out' 'Sign out of Windows now?') { shutdown.exe /l } } }
+        Run = { if (Confirm-Action 'Sign out' 'Sign out of Windows now?' -DefaultNo) { shutdown.exe /l } } }
     'action:sleep'    = @{ Names = @('Sleep'); Icon = "$sys\imageres.dll,96"
-        Run = { [void][Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false) } }
+        Run = { if (Confirm-Action 'Sleep' 'Put the PC to sleep now?' -DefaultNo) { [void][Windows.Forms.Application]::SetSuspendState('Suspend', $false, $false) } } }
     'action:lock'     = @{ Names = @('Lock'); Icon = "$sys\imageres.dll,54"
         Run = { Start-Process rundll32.exe -ArgumentList 'user32.dll,LockWorkStation' } }
 }
@@ -272,9 +273,10 @@ function Get-AppLabel($a) {
 
 # ---- Launching ----
 
-# Yes / No question, Yes being the default (Enter confirms)
-function Confirm-Action([string]$title, [string]$question) {
-    [Windows.Forms.MessageBox]::Show($question, $title, 'YesNo', 'Warning', 'Button1') -eq 'Yes'
+# Yes / No question. Yes is the default button (Enter confirms), or No with -DefaultNo.
+function Confirm-Action([string]$title, [string]$question, [switch]$DefaultNo) {
+    $default = if ($DefaultNo) { 'Button2' } else { 'Button1' }
+    [Windows.Forms.MessageBox]::Show($question, $title, 'YesNo', 'Warning', $default) -eq 'Yes'
 }
 
 # Asks first (Windows' own confirmation can be turned off), then empties the Recycle Bin
