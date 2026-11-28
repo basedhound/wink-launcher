@@ -289,4 +289,5 @@ function Invoke-Launch($app, [string]$text) {
     $false
 }
 
-Import-Apps
+# The bar loads the list once it's on screen ($deferAppList); anything else (tests) gets it right away
+if ($deferAppList) { Set-SearchIndex @() } else { Import-Apps }

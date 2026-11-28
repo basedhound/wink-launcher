@@ -129,7 +129,8 @@ On the left, the Start button is always hidden (the bar takes its place). It com
 | `alias.txt` | your aliases, created on first run (not versioned) |
 | `docs/` | the screenshots of this page |
 
-Usage history (`history.json`), the bar's position (`settings.json`) and the log (`bar.log`) live in `%APPDATA%\Launcher`.
+Usage history (`history.json`), the bar's position (`settings.json`), the log (`bar.log`) and the compiled C# parts
+(`cache\`, rebuilt by themselves when the code changes) live in `%APPDATA%\Launcher`.
 The log records starts and stops, every launch (and launch error), list reloads and errors:
 the first place to look if something doesn't open.
 
@@ -152,6 +153,9 @@ the first place to look if something doesn't open.
 - The box is a borderless WinForms window owned by `Shell_TrayWnd`, so Windows keeps it above the taskbar.
 - The suggestion list is a `WS_EX_NOACTIVATE` window that also answers `WM_MOUSEACTIVATE` with `MA_NOACTIVATE`,
   so neither typing nor clicking a suggestion ever takes the focus away from the box.
+- Startup is ordered so the bar shows up as early as possible after logon: the C# parts are compiled once and
+  cached, the bar is shown (and the Start button hidden) before the rest of the code loads, and the app list
+  loads last. The log records when it was on screen and when the list was ready.
 - The scheduled task doesn't run the bar itself: it asks Explorer to start it (`Shell.Application.ShellExecute`).
   A process started straight by Task Scheduler is treated as a background process and can't take the focus,
   so clicks on the bar and its suggestions would be ignored.

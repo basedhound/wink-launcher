@@ -155,4 +155,23 @@ $timer = New-Object Windows.Forms.Timer
 $timer.Interval = 500
 $timer.Add_Tick({ Update-Bar })
 
-$bar.Add_Load({ Update-Layout; [LauncherNative]::AttachToTaskbar($bar.Handle); Start-IconPreload })
+# ---- Startup: on screen first, everything else right after ----
+# Right after logon, the bar takes its place (and the Start button goes away) as soon as possible:
+# it's shown before the rest of its code is loaded, and the app list, the slowest part, loads last.
+$bar.Add_Load({ Update-Layout; [LauncherNative]::AttachToTaskbar($bar.Handle); Update-StartButton })
+
+function Show-BarEarly {
+    $bar.Show()                                # raises Load: placed in the taskbar, Start button hidden
+    [Windows.Forms.Application]::DoEvents()    # painted now, not only once the message loop starts
+    Write-Log ('On screen {0} ms after start' -f $startClock.ElapsedMilliseconds)
+}
+
+# Started by LauncherBar.ps1 once all the code is loaded: runs as soon as the message loop starts
+$firstLoad = New-Object Windows.Forms.Timer
+$firstLoad.Interval = 1
+$firstLoad.Add_Tick({
+    $firstLoad.Stop()
+    Import-Apps
+    Start-IconPreload
+    Write-Log ('Ready: app list loaded {0} ms after start' -f $startClock.ElapsedMilliseconds)
+})
