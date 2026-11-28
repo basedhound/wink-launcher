@@ -298,4 +298,27 @@ public static class LauncherIcon {
             }
         } catch { return null; }
     }
+    // Start menu shortcuts made by an MSI installer ("advertised") whose icon is a .ico kept in
+    // C:\Windows\Installer: Windows gives them the generic picture-file icon, so the bar reads the .ico itself.
+    // Shortcut name -> .ico path. The path is found in the .lnk's raw bytes (UTF-16, at any byte offset).
+    static readonly System.Text.RegularExpressions.Regex msiIcon = new System.Text.RegularExpressions.Regex(
+        @"\\Installer\\(\{[0-9A-F-]+\}\\[^\x00\\/:*?""<>|]+\.ico)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    public static System.Collections.Generic.Dictionary<string, string> MsiShortcutIcons(string[] dirs) {
+        var res = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        string installer = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Installer");
+        foreach (var dir in dirs) {
+            if (!System.IO.Directory.Exists(dir)) continue;
+            foreach (var f in System.IO.Directory.GetFiles(dir, "*.lnk", System.IO.SearchOption.AllDirectories)) {
+                try {
+                    var b = System.IO.File.ReadAllBytes(f);
+                    var m = msiIcon.Match(System.Text.Encoding.Unicode.GetString(b));
+                    if (!m.Success && b.Length > 1) m = msiIcon.Match(System.Text.Encoding.Unicode.GetString(b, 1, b.Length - 1));
+                    if (!m.Success) continue;
+                    var ico = System.IO.Path.Combine(installer, m.Groups[1].Value);
+                    if (System.IO.File.Exists(ico)) res[System.IO.Path.GetFileNameWithoutExtension(f)] = ico;
+                } catch { }
+            }
+        }
+        return res;
+    }
 }
